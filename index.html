@@ -6,61 +6,54 @@
     <title>Interval Tracker</title>
     <style>
         /* 全体の基本設定 */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 800px; margin: 0 auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 10px; margin: 0; }
         
-        /* カードを並べるコンテナ（グリッド表示の設定） */
+        /* カードを並べるコンテナ */
         #habit-list {
             display: grid;
-            /* 最小幅140pxの列を、画面幅いっぱいに自動で敷き詰める設定 */
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 15px; /* カード間の隙間 */
-            margin-bottom: 30px;
-            margin-top: 20px; 
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* 少し小さくしてウィジェット対応 */
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         /* 共通カードスタイル */
         .card-base {
             background: #fff;
-            padding: 15px;
+            padding: 10px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             cursor: pointer;
-            transition: 0.3s;
+            transition: 0.2s;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            aspect-ratio: 1 / 1; /* 正方形 */
+            aspect-ratio: 1 / 1; 
             box-sizing: border-box;
+            position: relative;
         }
         .card-base:active { transform: scale(0.95); }
 
-        /* 習慣カードの固有スタイル */
-        .habit-card {
-            border: 3px solid transparent; 
-        }
+        /* 習慣カード */
+        .habit-card { border: 3px solid transparent; }
 
-        /* 追加ボタン（カード型）の固有スタイル */
+        /* 追加ボタン */
         .add-card-btn {
-            background: #f0f2f5; /* 少し薄いグレー */
-            border: 3px dashed #cbd5e1; /* 点線 */
+            background: #f0f2f5;
+            border: 3px dashed #cbd5e1;
             color: #94a3b8;
-            font-size: 3rem;
+            font-size: 2.5rem;
             font-weight: bold;
         }
-        .add-card-btn:hover {
-            background: #e2e8f0;
-            color: #64748b;
-            border-color: #94a3b8;
-        }
+        .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
-        /* フォントサイズの微調整 */
-        .habit-info h2 { margin: 0; font-size: 1rem; color: #444; word-break: break-all; }
-        .elapsed-time { font-size: 1.3rem; font-weight: bold; margin: 10px 0; }
-        .status { font-size: 0.7rem; color: #888; }
+        /* テキスト周り */
+        .habit-info h2 { margin: 0; font-size: 0.9rem; color: #444; word-break: break-all; line-height: 1.2; }
+        .elapsed-time { font-size: 1.1rem; font-weight: bold; margin: 8px 0; }
+        .status { font-size: 0.6rem; color: #888; }
 
-        /* 状態ごとの色分け */
+        /* 状態ごとの色 */
         .ok .elapsed-time { color: #2ecc71; }
         .warning { border-color: #f1c40f; }
         .warning .elapsed-time { color: #f1c40f; }
@@ -70,42 +63,69 @@
         /* 削除ボタン */
         .delete-btn { 
             background: #e74c3c; color: white; border: none; border-radius: 20px; 
-            font-size: 0.7rem; padding: 5px 15px; margin-top: 10px; cursor: pointer;
-            opacity: 0.7; transition: 0.2s;
+            font-size: 0.6rem; padding: 4px 10px; margin-top: 5px; cursor: pointer;
+            opacity: 0.7; z-index: 2;
         }
         .delete-btn:hover { opacity: 1; }
 
-        /* 追加フォーム（モーダル風に表示切り替え） */
-        #add-form { display: none; background: #fff; padding: 20px; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button.main-btn { width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button.main-btn:hover { background: #2980b9; }
+        /* --- モーダル（確認画面・入力画面共通） --- */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 300px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center;
+        }
+        .modal-title { font-weight: bold; margin-bottom: 10px; color: #333; }
+        .modal-desc { font-size: 0.9rem; margin-bottom: 20px; color: #666; }
         
+        .modal-actions { display: flex; gap: 10px; justify-content: center; }
+        .btn { padding: 10px 0; border: none; border-radius: 6px; cursor: pointer; flex: 1; font-weight: bold; }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-cancel { background: #95a5a6; color: white; }
+
+        /* 入力フォームのスタイル調整 */
+        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
     </style>
 </head>
 <body>
     
-    <div id="add-form">
-        <h3 style="margin-top:0; text-align:center;">新しい習慣を追加</h3>
-        <input type="text" id="habit-name" placeholder="習慣名 (例: まくらカバー交換)">
-        <div style="display: flex; gap: 10px;">
-            <input type="number" id="habit-interval" placeholder="目標間隔" style="flex: 2;">
-            <select id="habit-unit" style="flex: 1;">
-                <option value="days">日</option>
-                <option value="hours">時間</option>
-            </select>
-        </div>
-        <div style="display: flex; gap: 10px; margin-top: 10px;">
-             <button class="main-btn" onclick="addHabit()" style="flex: 1;">追加</button>
-             <button class="main-btn" onclick="toggleForm()" style="flex: 1; background:#95a5a6;">閉じる</button>
+    <div id="habit-list"></div>
+
+    <div id="add-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">新しい習慣を追加</div>
+            <input type="text" id="habit-name" placeholder="習慣名 (例: 掃除)">
+            <div style="display: flex; gap: 5px;">
+                <input type="number" id="habit-interval" placeholder="目標" style="flex: 2;">
+                <select id="habit-unit" style="flex: 1;">
+                    <option value="days">日</option>
+                    <option value="hours">時間</option>
+                </select>
+            </div>
+            <div class="modal-actions" style="margin-top: 15px;">
+                <button class="btn btn-cancel" onclick="closeAddModal()">キャンセル</button>
+                <button class="btn btn-primary" onclick="addHabit()">追加</button>
+            </div>
         </div>
     </div>
 
-    <div id="habit-list">
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="confirm-title" class="modal-title">確認</div>
+            <div id="confirm-desc" class="modal-desc">内容</div>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="closeConfirmModal()">キャンセル</button>
+                <button id="confirm-ok-btn" class="btn btn-primary">OK</button>
+            </div>
         </div>
+    </div>
 
     <script>
         let habits = JSON.parse(localStorage.getItem('habits')) || [];
+        let pendingAction = null; // 確認画面でOKを押したときの動作を保存
 
         function saveHabits() {
             localStorage.setItem('habits', JSON.stringify(habits));
@@ -117,7 +137,6 @@
             list.innerHTML = '';
             const now = Date.now();
 
-            // 1. 既存の習慣カードを描画
             habits.forEach((habit, index) => {
                 const elapsedMs = now - habit.lastDone;
                 const elapsedHours = elapsedMs / (1000 * 60 * 60);
@@ -134,29 +153,49 @@
 
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
+                
+                // カードクリックイベント（削除ボタン以外）
                 div.onclick = (e) => {
-                    if(e.target.className !== 'delete-btn') updateHabit(index);
+                    if(!e.target.classList.contains('delete-btn')) {
+                        showConfirm(
+                            `${habit.name} を完了しましたか？`,
+                            '時間をリセットします',
+                            'btn-primary',
+                            () => {
+                                habits[index].lastDone = Date.now();
+                                saveHabits();
+                            }
+                        );
+                    }
                 };
                 
                 div.innerHTML = `
                     <div class="habit-info">
                         <h2>${habit.name}</h2>
                         <div class="elapsed-time">${displayTime}</div>
-                        <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : '時間'}ごと</div>
+                        <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : '時間'}</div>
                     </div>
-                    <button class="delete-btn" onclick="deleteHabit(${index})">削除</button>
+                    <button class="delete-btn" onclick="askDelete(${index})">削除</button>
                 `;
                 list.appendChild(div);
             });
 
-            // 2. 最後に「追加ボタン」カードを描画
+            // 追加ボタン
             const addBtnDiv = document.createElement('div');
             addBtnDiv.className = 'card-base add-card-btn';
             addBtnDiv.innerHTML = '+';
-            addBtnDiv.onclick = toggleForm;
+            addBtnDiv.onclick = openAddModal;
             list.appendChild(addBtnDiv);
         }
 
+        // --- 追加機能 ---
+        function openAddModal() {
+            document.getElementById('add-modal').style.display = 'flex';
+            document.getElementById('habit-name').focus();
+        }
+        function closeAddModal() {
+            document.getElementById('add-modal').style.display = 'none';
+        }
         function addHabit() {
             const name = document.getElementById('habit-name').value;
             const interval = parseInt(document.getElementById('habit-interval').value);
@@ -164,38 +203,47 @@
             if (name && interval) {
                 habits.push({ name, interval, unit, lastDone: Date.now() });
                 saveHabits();
-                toggleForm(); // 追加後に閉じる
+                closeAddModal();
                 document.getElementById('habit-name').value = '';
                 document.getElementById('habit-interval').value = '';
             }
         }
 
-        function updateHabit(index) {
-            if (confirm(`${habits[index].name} を完了しましたか？\n(時間をリセットします)`)) {
-                habits[index].lastDone = Date.now();
-                saveHabits();
-            }
+        // --- 確認ダイアログ機能 ---
+        function showConfirm(title, desc, confirmBtnClass, action) {
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-desc').innerText = desc;
+            
+            const okBtn = document.getElementById('confirm-ok-btn');
+            okBtn.className = `btn ${confirmBtnClass}`; // 色を変更（青か赤か）
+            
+            pendingAction = action;
+            document.getElementById('confirm-modal').style.display = 'flex';
         }
 
-        function deleteHabit(index) {
-            if (confirm(`「${habits[index].name}」を削除しますか？`)) {
-                habits.splice(index, 1);
-                saveHabits();
-            }
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            pendingAction = null;
         }
 
-        function toggleForm() {
-            const form = document.getElementById('add-form');
-            if (form.style.display === 'block') {
-                form.style.display = 'none';
-            } else {
-                form.style.display = 'block';
-                // フォームが表示されたらスクロールして見えるようにする
-                form.scrollIntoView({ behavior: 'smooth' });
-                // 入力欄にフォーカス
-                document.getElementById('habit-name').focus();
-            }
-        }
+        // OKボタンが押されたとき
+        document.getElementById('confirm-ok-btn').onclick = () => {
+            if (pendingAction) pendingAction();
+            closeConfirmModal();
+        };
+
+        // 削除確認のショートカット
+        window.askDelete = function(index) {
+            showConfirm(
+                `「${habits[index].name}」を削除しますか？`,
+                'この操作は取り消せません',
+                'btn-danger', // 赤ボタンにする
+                () => {
+                    habits.splice(index, 1);
+                    saveHabits();
+                }
+            );
+        };
 
         renderHabits();
         setInterval(renderHabits, 60000);
