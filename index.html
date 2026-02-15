@@ -14,7 +14,7 @@
         #habit-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 12px; /* 隙間を少し詰める */
+            gap: 12px;
             margin-bottom: 30px;
             padding-bottom: 60px;
         }
@@ -22,14 +22,14 @@
         /* 共通カードスタイル */
         .card-base {
             background: #fff;
-            padding: 8px; /* パディングを少し減らす */
+            padding: 8px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             cursor: pointer;
             transition: 0.3s;
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* 上下に分散配置（あふれ防止） */
+            justify-content: space-between;
             align-items: center;
             text-align: center;
             aspect-ratio: 1 / 1; 
@@ -49,14 +49,14 @@
             color: #94a3b8;
             font-size: 3rem;
             font-weight: bold;
-            justify-content: center; /* 追加ボタンは中央寄せのまま */
+            justify-content: center;
         }
         .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
         /* テキスト調整 */
         .habit-info { width: 100%; display: flex; flex-direction: column; align-items: center; }
         
-        /* タイトル設定（少し小さく） */
+        /* タイトル設定 */
         .habit-info h2 { 
             margin: 0;
             font-size: 0.85rem; 
@@ -67,26 +67,35 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-height: 2.6em; /* 固定高さではなく最小高さに */
+            min-height: 2.6em;
             margin-bottom: 2px;
         }
         
-        /* 時間表示設定（サイズ調整と折り返し防止） */
+        /* 時間表示設定 */
         .elapsed-time { 
-            font-size: 0.95rem; /* サイズを縮小して1行に収める */
+            font-size: 0.95rem;
             font-weight: bold; 
-            margin: 3px 0;
-            white-space: nowrap; /* 勝手な改行を禁止 */
+            margin: 2px 0;
+            white-space: nowrap;
         }
-        
-        /* 「完了から」の部分だけ小さくする */
         .elapsed-label {
             font-size: 0.75rem;
             font-weight: normal;
             margin-right: 2px;
         }
 
-        .status { font-size: 0.65rem; color: #888; }
+        /* 次回の予定日時スタイル */
+        .next-schedule {
+            font-size: 0.75rem;
+            color: #555;
+            background: #f0f2f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 2px 0;
+            white-space: nowrap;
+        }
+
+        .status { font-size: 0.65rem; color: #888; margin-top: 2px; }
 
         /* 状態ごとの色 */
         .ok .elapsed-time { color: #2ecc71; }
@@ -200,7 +209,7 @@
             list.innerHTML = '';
             const now = Date.now();
             
-            // ソートロジック（残り時間が短い順、超過は最優先）
+            // ソートロジック
             let displayHabits = habits.map((habit, index) => ({ ...habit, originalIndex: index }));
             displayHabits.sort((a, b) => {
                 const elapsedA = now - a.lastDone;
@@ -232,6 +241,14 @@
                     displayTime = `${days}日 ${hours}時間`;
                 }
 
+                // 次の予定日（日付のみ）
+                const targetMs = (habit.unit === 'days' ? habit.interval * 24 : habit.interval) * 60 * 60 * 1000;
+                const nextDeadline = new Date(habit.lastDone + targetMs);
+                const month = nextDeadline.getMonth() + 1;
+                const date = nextDeadline.getDate();
+                // 時間表示を削除し、日付のみに修正
+                const nextScheduleStr = `${month}月${date}日`;
+
                 const targetHours = habit.unit === 'days' ? habit.interval * 24 : habit.interval;
                 
                 let statusClass = 'ok';
@@ -254,11 +271,11 @@
                     }
                 };
                 
-                // 「完了から」を小さく表示するためのspanタグを追加
                 div.innerHTML = `
                     <div class="habit-info">
                         <h2>${habit.name}</h2>
                         <div class="elapsed-time"><span class="elapsed-label">完了から</span>${displayTime}</div>
+                        <div class="next-schedule">次回: ${nextScheduleStr}</div>
                         <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : 'h'}</div>
                     </div>
                     <button class="delete-btn" onclick="askDelete(${originalIndex})">削除</button>
