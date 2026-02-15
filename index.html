@@ -1,480 +1,301 @@
 <!DOCTYPE html>
-
 <html lang="ja">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Interval Tracker</title>
-
+    <title>Sync Habit Tracker</title>
     <style>
+        /* 基本設定 */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f4f4f9; 
+            padding: 5px; 
+            margin: 0; 
+        }
 
-        /* 全体の基本設定 */
-
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 10px; margin: 0; }
-
-        
-
-        /* カードを並べるコンテナ */
-
+        /* リスト表示 */
         #habit-list {
-
-            display: grid;
-
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* 少し小さくしてウィジェット対応 */
-
-            gap: 10px;
-
-            margin-bottom: 20px;
-
-        }
-
-
-        /* 共通カードスタイル */
-
-        .card-base {
-
-            background: #fff;
-
-            padding: 10px;
-
-            border-radius: 12px;
-
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-
-            cursor: pointer;
-
-            transition: 0.2s;
-
             display: flex;
-
             flex-direction: column;
+            gap: 6px; 
+            padding-bottom: 80px; 
+        }
 
-            justify-content: center;
-
+        /* カードスタイル */
+        .card-base {
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between; 
             align-items: center;
-
-            text-align: center;
-
-            aspect-ratio: 1 / 1; 
-
             box-sizing: border-box;
-
-            position: relative;
-
+            width: 100%;
         }
 
-        .card-base:active { transform: scale(0.95); }
-
-
-        /* 習慣カード */
-
-        .habit-card { border: 3px solid transparent; }
-
-
-        /* 追加ボタン */
-
-        .add-card-btn {
-
-            background: #f0f2f5;
-
-            border: 3px dashed #cbd5e1;
-
-            color: #94a3b8;
-
-            font-size: 2.5rem;
-
-            font-weight: bold;
-
+        .habit-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1;
         }
-
-        .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
-
-
-        /* テキスト周り */
-
-        .habit-info h2 { margin: 0; font-size: 0.9rem; color: #444; word-break: break-all; line-height: 1.2; }
-
-        .elapsed-time { font-size: 1.1rem; font-weight: bold; margin: 8px 0; }
-
-        .status { font-size: 0.6rem; color: #888; }
-
+        .habit-info h2 { 
+            margin: 0; 
+            font-size: 0.85rem; 
+            color: #333; 
+            font-weight: normal;
+        }
+        .elapsed-time { 
+            font-size: 0.9rem; 
+            font-weight: bold; 
+            margin-left: auto; 
+            margin-right: 10px;
+        }
 
         /* 状態ごとの色 */
-
+        .ok { border-left: 4px solid #2ecc71; }
         .ok .elapsed-time { color: #2ecc71; }
-
-        .warning { border-color: #f1c40f; }
-
+        
+        .warning { border-left: 4px solid #f1c40f; }
         .warning .elapsed-time { color: #f1c40f; }
-
-        .danger { border-color: #e74c3c; background-color: #fff5f5; }
-
+        
+        .danger { border-left: 4px solid #e74c3c; background-color: #fffdfd; }
         .danger .elapsed-time { color: #e74c3c; }
 
-
         /* 削除ボタン */
-
         .delete-btn { 
-
-            background: #e74c3c; color: white; border: none; border-radius: 20px; 
-
-            font-size: 0.6rem; padding: 4px 10px; margin-top: 5px; cursor: pointer;
-
-            opacity: 0.7; z-index: 2;
-
+            background: #e74c3c; color: white; border: none; border-radius: 4px; 
+            font-size: 0.7rem; padding: 4px 8px; cursor: pointer; opacity: 0.2; 
         }
-
         .delete-btn:hover { opacity: 1; }
 
+        /* 追加ボタン */
+        .add-fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: #3498db;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 10;
+        }
 
-        /* --- モーダル（確認画面・入力画面共通） --- */
-
+        /* モーダル */
         .modal-overlay {
-
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-
             background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;
-
         }
-
         .modal-box {
-
-            background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 300px;
-
+            background: #fff; padding: 15px; border-radius: 8px; width: 85%; max-width: 280px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center;
-
         }
-
-        .modal-title { font-weight: bold; margin-bottom: 10px; color: #333; }
-
-        .modal-desc { font-size: 0.9rem; margin-bottom: 20px; color: #666; }
-
-        
-
-        .modal-actions { display: flex; gap: 10px; justify-content: center; }
-
-        .btn { padding: 10px 0; border: none; border-radius: 6px; cursor: pointer; flex: 1; font-weight: bold; }
-
+        .modal-title { font-weight: bold; margin-bottom: 8px; font-size: 1rem; color: #333; }
+        .modal-actions { display: flex; gap: 8px; justify-content: center; margin-top: 15px;}
+        .btn { padding: 8px 0; border: none; border-radius: 4px; cursor: pointer; flex: 1; font-weight: bold; font-size: 0.85rem;}
         .btn-primary { background: #3498db; color: white; }
-
         .btn-danger { background: #e74c3c; color: white; }
-
         .btn-cancel { background: #95a5a6; color: white; }
-
-
-        /* 入力フォームのスタイル調整 */
-
-        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-
+        input, select { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 0.9rem;}
     </style>
-
 </head>
-
 <body>
 
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <div id="habit-list">Loading...</div>
     
-
-    <div id="habit-list"></div>
-
+    <div class="add-fab" onclick="openAddModal()">+</div>
 
     <div id="add-modal" class="modal-overlay">
-
         <div class="modal-box">
-
-            <div class="modal-title">新しい習慣を追加</div>
-
-            <input type="text" id="habit-name" placeholder="習慣名 (例: 掃除)">
-
+            <div class="modal-title">習慣を追加</div>
+            <input type="text" id="habit-name" placeholder="習慣名">
             <div style="display: flex; gap: 5px;">
-
                 <input type="number" id="habit-interval" placeholder="目標" style="flex: 2;">
-
                 <select id="habit-unit" style="flex: 1;">
-
                     <option value="days">日</option>
-
                     <option value="hours">時間</option>
-
                 </select>
-
             </div>
-
-            <div class="modal-actions" style="margin-top: 15px;">
-
+            <div class="modal-actions">
                 <button class="btn btn-cancel" onclick="closeAddModal()">キャンセル</button>
-
                 <button class="btn btn-primary" onclick="addHabit()">追加</button>
-
             </div>
-
         </div>
-
     </div>
-
 
     <div id="confirm-modal" class="modal-overlay">
-
         <div class="modal-box">
-
             <div id="confirm-title" class="modal-title">確認</div>
-
-            <div id="confirm-desc" class="modal-desc">内容</div>
-
+            <div id="confirm-desc" class="modal-desc" style="font-size:0.85rem; color:#666; margin-bottom:15px;">内容</div>
             <div class="modal-actions">
-
                 <button class="btn btn-cancel" onclick="closeConfirmModal()">キャンセル</button>
-
                 <button id="confirm-ok-btn" class="btn btn-primary">OK</button>
-
             </div>
-
         </div>
-
     </div>
 
-
     <script>
+        // ▼▼▼▼▼ ここを書き換えてください ▼▼▼▼▼
+        const firebaseConfig = {
+            apiKey: "AIzaSyDknkJ_O5CysoPONKCrpjFvRiDXlpyfnj8",
+            authDomain: "habit-tracker-ca505.firebaseapp.com",
+            projectId: "habit-tracker-ca505",
+            storageBucket: "habit-tracker-ca505.firebasestorage.app",
+            messagingSenderId: "926960060204",
+            appId: "1:926960060204:web:e02d13045ac55e1a81ce89f"
+        };
+        // ▲▲▲▲▲ ここまで ▲▲▲▲▲
 
-        let habits = JSON.parse(localStorage.getItem('habits')) || [];
+        // 初期化
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-        let pendingAction = null; // 確認画面でOKを押したときの動作を保存
+        // データの保存場所（合言葉）。ここを変えれば別のデータセットになります。
+        const DOC_ID = "my_habit_data"; 
 
+        let habits = [];
+        let pendingAction = null;
 
-        function saveHabits() {
+        // リアルタイム同期の設定
+        db.collection("data").doc(DOC_ID).onSnapshot((doc) => {
+            if (doc.exists) {
+                habits = doc.data().list || [];
+                renderHabits();
+            } else {
+                // 初回アクセス時などデータがない場合
+                habits = [];
+                renderHabits();
+            }
+        });
 
-            localStorage.setItem('habits', JSON.stringify(habits));
-
-            renderHabits();
-
+        // データをクラウドに保存する関数
+        function saveToCloud() {
+            db.collection("data").doc(DOC_ID).set({ list: habits })
+                .catch((error) => {
+                    console.error("Error writing document: ", error);
+                    alert("保存に失敗しました。通信環境を確認してください。");
+                });
         }
 
-
+        // 表示ロジック（ここは以前と同じ）
         function renderHabits() {
-
             const list = document.getElementById('habit-list');
-
             list.innerHTML = '';
-
             const now = Date.now();
 
-
-            habits.forEach((habit, index) => {
-
-                const elapsedMs = now - habit.lastDone;
-
-                const elapsedHours = elapsedMs / (1000 * 60 * 60);
-
-                const elapsedDays = elapsedHours / 24;
-
-                const targetHours = habit.unit === 'days' ? habit.interval * 24 : habit.interval;
-
-
-                let displayTime = elapsedHours < 24 
-
-                    ? `${Math.floor(elapsedHours)}時間 前` 
-
-                    : `${Math.floor(elapsedDays)}日 前`;
-
-                
-
-                let statusClass = 'ok';
-
-                if (elapsedHours >= targetHours) statusClass = 'danger';
-
-                else if (elapsedHours >= targetHours * 0.8) statusClass = 'warning';
-
-
-                const div = document.createElement('div');
-
-                div.className = `card-base habit-card ${statusClass}`;
-
-                
-
-                // カードクリックイベント（削除ボタン以外）
-
-                div.onclick = (e) => {
-
-                    if(!e.target.classList.contains('delete-btn')) {
-
-                        showConfirm(
-
-                            `${habit.name} を完了しましたか？`,
-
-                            '時間をリセットします',
-
-                            'btn-primary',
-
-                            () => {
-
-                                habits[index].lastDone = Date.now();
-
-                                saveHabits();
-
-                            }
-
-                        );
-
-                    }
-
-                };
-
-                
-
-                div.innerHTML = `
-
-                    <div class="habit-info">
-
-                        <h2>${habit.name}</h2>
-
-                        <div class="elapsed-time">${displayTime}</div>
-
-                        <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : '時間'}</div>
-
-                    </div>
-
-                    <button class="delete-btn" onclick="askDelete(${index})">削除</button>
-
-                `;
-
-                list.appendChild(div);
-
-            });
-
-
-            // 追加ボタン
-
-            const addBtnDiv = document.createElement('div');
-
-            addBtnDiv.className = 'card-base add-card-btn';
-
-            addBtnDiv.innerHTML = '+';
-
-            addBtnDiv.onclick = openAddModal;
-
-            list.appendChild(addBtnDiv);
-
-        }
-
-
-        // --- 追加機能 ---
-
-        function openAddModal() {
-
-            document.getElementById('add-modal').style.display = 'flex';
-
-            document.getElementById('habit-name').focus();
-
-        }
-
-        function closeAddModal() {
-
-            document.getElementById('add-modal').style.display = 'none';
-
-        }
-
-        function addHabit() {
-
-            const name = document.getElementById('habit-name').value;
-
-            const interval = parseInt(document.getElementById('habit-interval').value);
-
-            const unit = document.getElementById('habit-unit').value;
-
-            if (name && interval) {
-
-                habits.push({ name, interval, unit, lastDone: Date.now() });
-
-                saveHabits();
-
-                closeAddModal();
-
-                document.getElementById('habit-name').value = '';
-
-                document.getElementById('habit-interval').value = '';
-
+            if(habits.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#999; margin-top:20px;">右下のボタンから<br>習慣を追加してください</div>';
+                return;
             }
 
+            habits.forEach((habit, index) => {
+                const elapsedMs = now - habit.lastDone;
+                const elapsedHours = elapsedMs / (1000 * 60 * 60);
+                const elapsedDays = elapsedHours / 24;
+                const targetHours = habit.unit === 'days' ? habit.interval * 24 : habit.interval;
+
+                let displayTime = elapsedHours < 24 
+                    ? `${Math.floor(elapsedHours)}h` 
+                    : `${Math.floor(elapsedDays)}d`;
+                
+                let statusClass = 'ok';
+                if (elapsedHours >= targetHours) statusClass = 'danger';
+                else if (elapsedHours >= targetHours * 0.8) statusClass = 'warning';
+
+                const div = document.createElement('div');
+                div.className = `card-base ${statusClass}`;
+                
+                // 完了アクション
+                div.onclick = (e) => {
+                    if(!e.target.classList.contains('delete-btn')) {
+                        showConfirm(
+                            `${habit.name}`,
+                            '完了としてリセットしますか？',
+                            'btn-primary',
+                            () => {
+                                habits[index].lastDone = Date.now();
+                                saveToCloud(); // クラウドへ保存
+                            }
+                        );
+                    }
+                };
+                
+                div.innerHTML = `
+                    <div class="habit-info">
+                        <h2>${habit.name}</h2>
+                        <div class="elapsed-time">${displayTime}</div>
+                    </div>
+                    <button class="delete-btn" onclick="askDelete(${index})">×</button>
+                `;
+                list.appendChild(div);
+            });
         }
 
+        // --- 追加・削除ロジック ---
+        function addHabit() {
+            const name = document.getElementById('habit-name').value;
+            const interval = parseInt(document.getElementById('habit-interval').value);
+            const unit = document.getElementById('habit-unit').value;
+            if (name && interval) {
+                habits.push({ name, interval, unit, lastDone: Date.now() });
+                saveToCloud(); // クラウドへ保存
+                closeAddModal();
+                document.getElementById('habit-name').value = '';
+                document.getElementById('habit-interval').value = '';
+            }
+        }
 
-        // --- 確認ダイアログ機能 ---
-
+        // モーダル関連
+        function openAddModal() {
+            document.getElementById('add-modal').style.display = 'flex';
+            document.getElementById('habit-name').focus();
+        }
+        function closeAddModal() {
+            document.getElementById('add-modal').style.display = 'none';
+        }
         function showConfirm(title, desc, confirmBtnClass, action) {
-
             document.getElementById('confirm-title').innerText = title;
-
             document.getElementById('confirm-desc').innerText = desc;
-
-            
-
             const okBtn = document.getElementById('confirm-ok-btn');
-
-            okBtn.className = `btn ${confirmBtnClass}`; // 色を変更（青か赤か）
-
-            
-
+            okBtn.className = `btn ${confirmBtnClass}`;
             pendingAction = action;
-
             document.getElementById('confirm-modal').style.display = 'flex';
-
         }
-
-
         function closeConfirmModal() {
-
             document.getElementById('confirm-modal').style.display = 'none';
-
             pendingAction = null;
-
         }
-
-
-        // OKボタンが押されたとき
-
         document.getElementById('confirm-ok-btn').onclick = () => {
-
             if (pendingAction) pendingAction();
-
             closeConfirmModal();
-
         };
-
-
-        // 削除確認のショートカット
-
         window.askDelete = function(index) {
-
             showConfirm(
-
+                `削除`,
                 `「${habits[index].name}」を削除しますか？`,
-
-                'この操作は取り消せません',
-
-                'btn-danger', // 赤ボタンにする
-
+                'btn-danger',
                 () => {
-
                     habits.splice(index, 1);
-
-                    saveHabits();
-
+                    saveToCloud(); // クラウドへ保存
                 }
-
             );
-
         };
 
-
-        renderHabits();
-
+        // 時間経過による表示更新（1分ごと）
         setInterval(renderHabits, 60000);
 
     </script>
-
 </body>
-
 </html>
