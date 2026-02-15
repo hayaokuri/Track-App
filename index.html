@@ -10,7 +10,7 @@
         /* 全体の基本設定 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 900px; margin: 0 auto; }
         
-        /* カードを並べるコンテナ */
+        /* --- 通常モード（大きいサイズ 200px） --- */
         #habit-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -20,7 +20,6 @@
             justify-content: center; 
         }
 
-        /* 共通カードスタイル */
         .card-base {
             background: #fff;
             padding: 10px;
@@ -37,16 +36,12 @@
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
-            user-select: none; /* 長押し時のテキスト選択を防ぐ */
+            user-select: none;
             -webkit-user-select: none;
         }
-        /* クリック・長押し時のアニメーション */
         .card-base:active { transform: scale(0.95); transition: 0.1s; }
-
-        /* 習慣カード */
         .habit-card { border: 3px solid transparent; }
 
-        /* 追加ボタン */
         .add-card-btn {
             background: #f0f2f5;
             border: 3px dashed #cbd5e1;
@@ -61,8 +56,7 @@
         }
         .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
-        /* テキスト調整 */
-        .habit-info { width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none; /* 子要素がクリック判定を邪魔しないように */ }
+        .habit-info { width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
         
         .habit-info h2 { 
             margin: 0 0 5px 0;
@@ -104,14 +98,12 @@
 
         .status { font-size: 0.8rem; color: #999; margin-top: 4px; }
 
-        /* 状態ごとの色 */
         .ok .elapsed-time { color: #2ecc71; }
         .warning { border-color: #f1c40f; }
         .warning .elapsed-time { color: #f1c40f; }
         .danger { border-color: #e74c3c; background-color: #fff5f5; }
         .danger .elapsed-time { color: #e74c3c; }
 
-        /* 削除ボタン */
         .delete-btn { 
             position: absolute;
             top: 10px;
@@ -133,6 +125,27 @@
             justify-content: center;
         }
         .delete-btn:hover { opacity: 1; background-color: rgba(231, 76, 60, 0.1); }
+
+
+        /* --- ▼▼▼ コンパクトモード（埋め込み・スマホ用）の設定 ▼▼▼ --- */
+        /* クラス .small-mode が付いているか、画面幅が600px以下の場合に適用 */
+        body.small-mode #habit-list,
+        @media (max-width: 600px) {
+            #habit-list {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* 小さく */
+                gap: 10px;
+            }
+            .card-base { padding: 8px; border-radius: 14px; }
+            .add-card-btn { font-size: 4rem; padding-bottom: 6px; }
+            .habit-info h2 { font-size: 0.9rem; margin: 0 0 2px 0; }
+            .elapsed-time { font-size: 1.6rem; margin: 2px 0; }
+            .elapsed-label { font-size: 0.7rem; margin-bottom: 2px; }
+            .next-schedule { font-size: 0.75rem; padding: 2px 8px; margin: 4px 0; }
+            .status { font-size: 0.7rem; }
+            .delete-btn { 
+                width: 30px; height: 30px; font-size: 1.2rem; top: 5px; right: 5px; 
+            }
+        }
 
         /* モーダル */
         .modal-overlay {
@@ -190,6 +203,14 @@
     <div id="habit-list">Loading...</div>
 
     <script>
+        // ▼▼▼ 埋め込みモードの判定 ▼▼▼
+        // URLに ?embed=true が付いている場合は強制的に小さいモードにする
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('embed') === 'true') {
+            document.body.classList.add('small-mode');
+        }
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
         // ▼▼▼ Firebase設定 ▼▼▼
         const firebaseConfig = {
             apiKey: "AIzaSyDknkJ_O5CysoPONKCrpjFvRiDXlpyfnj8",
@@ -207,7 +228,7 @@
 
         let habits = [];
         let pendingAction = null;
-        let editingIndex = null; // 編集中のインデックス
+        let editingIndex = null;
         let longPressTimer = null;
         let isLongPress = false;
 
@@ -281,13 +302,12 @@
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
                 
-                // --- 長押し・クリック判定ロジック ---
                 const startPress = () => {
                     isLongPress = false;
                     longPressTimer = setTimeout(() => {
                         isLongPress = true;
-                        openEditModal(originalIndex); // 長押しで編集
-                    }, 800); // 0.8秒で長押し判定
+                        openEditModal(originalIndex);
+                    }, 800);
                 };
                 const cancelPress = () => {
                     clearTimeout(longPressTimer);
@@ -295,12 +315,11 @@
                 const endPress = (e) => {
                     clearTimeout(longPressTimer);
                     if (isLongPress) {
-                        e.preventDefault(); // 長押し成立時はクリックイベントを発火させない
+                        e.preventDefault();
                         return;
                     }
                 };
 
-                // タッチデバイスとマウス両対応
                 div.addEventListener('mousedown', startPress);
                 div.addEventListener('touchstart', startPress, {passive: true});
                 div.addEventListener('mouseup', endPress);
@@ -309,7 +328,7 @@
                 div.addEventListener('touchmove', cancelPress);
 
                 div.onclick = (e) => {
-                    if (isLongPress) { isLongPress = false; return; } // 長押し直後のクリックを無視
+                    if (isLongPress) { isLongPress = false; return; }
                     if(!e.target.classList.contains('delete-btn')) {
                         showConfirm(
                             `${habit.name}`,
@@ -318,7 +337,7 @@
                             () => {
                                 habits[originalIndex].lastDone = Date.now();
                                 saveToCloud();
-                                triggerConfetti(); // お祝い演出！
+                                triggerConfetti();
                             }
                         );
                     }
@@ -342,11 +361,10 @@
             const addBtnDiv = document.createElement('div');
             addBtnDiv.className = 'card-base add-card-btn';
             addBtnDiv.innerHTML = '+';
-            addBtnDiv.onclick = () => openEditModal(null); // 新規追加
+            addBtnDiv.onclick = () => openEditModal(null);
             list.appendChild(addBtnDiv);
         }
 
-        // --- 紙吹雪エフェクト ---
         function triggerConfetti() {
             confetti({
                 particleCount: 100,
@@ -355,7 +373,6 @@
             });
         }
 
-        // --- 追加・編集関連 ---
         function saveHabit() {
             const name = document.getElementById('habit-name').value;
             const interval = parseInt(document.getElementById('habit-interval').value);
@@ -363,13 +380,10 @@
 
             if (name && interval) {
                 if (editingIndex !== null) {
-                    // 編集モード
                     habits[editingIndex].name = name;
                     habits[editingIndex].interval = interval;
                     habits[editingIndex].unit = unit;
-                    // lastDoneは更新しない
                 } else {
-                    // 新規追加モード
                     habits.push({ name, interval, unit, lastDone: Date.now() });
                 }
                 saveToCloud();
@@ -387,7 +401,6 @@
             editingIndex = index;
 
             if (index !== null) {
-                // 編集モード
                 modalTitle.innerText = "習慣を編集";
                 saveBtn.innerText = "保存";
                 const target = habits[index];
@@ -395,7 +408,6 @@
                 intervalInput.value = target.interval;
                 unitInput.value = target.unit;
             } else {
-                // 新規モード
                 modalTitle.innerText = "習慣を追加";
                 saveBtn.innerText = "追加";
                 nameInput.value = '';
