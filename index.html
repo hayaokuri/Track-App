@@ -22,7 +22,7 @@
         
         #habit-list {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* ▼基本は横2列▼ */
+            grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             margin-bottom: 20px;
             padding-bottom: 40px;
@@ -138,22 +138,49 @@
 
 
         /* -------------------------------------------------- */
-        /* ② 埋め込みモード（?embed=true）：横4列・小さめ      */
+        /* ② 埋め込みモード（?embed=true）：横4列・改善版      */
         /* -------------------------------------------------- */
         body.embed-mode #habit-list {
-            grid-template-columns: repeat(4, 1fr) !important; /* ▼強制的に横4列▼ */
+            grid-template-columns: repeat(4, 1fr) !important;
             gap: 6px;
         }
-        body.embed-mode .card-base { padding: 4px; border-radius: 8px; }
-        body.embed-mode .add-card-btn { font-size: 2rem; padding-bottom: 2px; }
         
-        body.embed-mode .habit-info h2 { font-size: 0.65rem; margin-bottom: 0; }
-        body.embed-mode .elapsed-time { font-size: 1rem; margin: 1px 0; }
-        body.embed-mode .elapsed-label { font-size: 0.5rem; }
-        body.embed-mode .next-schedule { font-size: 0.55rem; padding: 1px 4px; margin: 2px 0; border-radius: 4px; }
-        body.embed-mode .status { font-size: 0.55rem; margin-top: 1px; }
+        /* カード内の余白を少し詰める */
+        body.embed-mode .card-base { padding: 4px 2px; border-radius: 10px; }
         
-        body.embed-mode .delete-btn { width: 18px; height: 18px; font-size: 0.8rem; top: 1px; right: 1px; }
+        /* プラスボタン */
+        body.embed-mode .add-card-btn { font-size: 2.5rem; padding-bottom: 4px; }
+        
+        /* タイトル：サイズアップ */
+        body.embed-mode .habit-info h2 { 
+            font-size: 0.8rem; /* ←大きく */
+            margin-bottom: 1px; 
+            line-height: 1.2;
+        }
+        
+        /* 経過時間：サイズアップ */
+        body.embed-mode .elapsed-time { 
+            font-size: 1.3rem; /* ←大きく */
+            margin: 1px 0; 
+            letter-spacing: -1px; /* 数字の間隔を少し詰める */
+        }
+        
+        /* ラベル（完了から） */
+        body.embed-mode .elapsed-label { font-size: 0.55rem; color: #777; }
+        
+        /* 次回予定：サイズアップ */
+        body.embed-mode .next-schedule { 
+            font-size: 0.65rem; /* ←大きく */
+            padding: 1px 5px; 
+            margin: 2px 0; 
+            border-radius: 6px; 
+        }
+        
+        /* 目標ステータス */
+        body.embed-mode .status { font-size: 0.6rem; margin-top: 1px; }
+        
+        /* 削除ボタン */
+        body.embed-mode .delete-btn { width: 20px; height: 20px; font-size: 0.9rem; top: 0; right: 0; }
 
 
         /* -------------------------------------------------- */
@@ -161,7 +188,6 @@
         /* -------------------------------------------------- */
         @media (min-width: 800px) {
             body { padding: 20px; max-width: 900px; }
-            /* 埋め込みモードでない場合のみ適用 */
             body:not(.embed-mode) #habit-list {
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
                 gap: 20px;
@@ -254,19 +280,13 @@
         function checkEmbedMode() {
             let isEmbed = false;
             try {
-                // Iframe内にいる場合は自動で埋め込みモード
-                if (window.self !== window.top) {
-                    isEmbed = true;
-                }
+                if (window.self !== window.top) isEmbed = true;
             } catch (e) {
                 isEmbed = true; 
             }
 
-            // URLパラメータ ?embed=true があれば強制的に埋め込みモード
             const params = new URLSearchParams(window.location.search);
-            if (params.get('embed') === 'true') {
-                isEmbed = true;
-            }
+            if (params.get('embed') === 'true') isEmbed = true;
 
             if (isEmbed) {
                 document.body.classList.add('embed-mode');
