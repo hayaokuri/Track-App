@@ -15,32 +15,45 @@
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 15px; /* カード間の隙間 */
             margin-bottom: 30px;
-            margin-top: 20px; /* タイトルを消したので上部に少し余白を追加 */
+            margin-top: 20px; 
         }
 
-        /* 個々のカードのスタイル（正方形・中央揃え） */
-        .habit-card {
+        /* 共通カードスタイル */
+        .card-base {
             background: #fff;
             padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             cursor: pointer;
             transition: 0.3s;
-            
-            /* 中身を縦積みの中央揃えにする */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
+            aspect-ratio: 1 / 1; /* 正方形 */
+            box-sizing: border-box;
+        }
+        .card-base:active { transform: scale(0.95); }
 
-            /* 正方形にするための重要な設定 */
-            aspect-ratio: 1 / 1;
-
-            /* 状態表示用の枠線（通常時は透明） */
+        /* 習慣カードの固有スタイル */
+        .habit-card {
             border: 3px solid transparent; 
         }
-        .habit-card:active { transform: scale(0.95); }
+
+        /* 追加ボタン（カード型）の固有スタイル */
+        .add-card-btn {
+            background: #f0f2f5; /* 少し薄いグレー */
+            border: 3px dashed #cbd5e1; /* 点線 */
+            color: #94a3b8;
+            font-size: 3rem;
+            font-weight: bold;
+        }
+        .add-card-btn:hover {
+            background: #e2e8f0;
+            color: #64748b;
+            border-color: #94a3b8;
+        }
 
         /* フォントサイズの微調整 */
         .habit-info h2 { margin: 0; font-size: 1rem; color: #444; word-break: break-all; }
@@ -62,21 +75,18 @@
         }
         .delete-btn:hover { opacity: 1; }
 
-        /* 追加フォーム */
+        /* 追加フォーム（モーダル風に表示切り替え） */
         #add-form { display: none; background: #fff; padding: 20px; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         button.main-btn { width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button.main-btn:hover { background: #2980b9; }
-        .toggle-btn { width: 100%; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: 0.2s; }
-        .toggle-btn:hover { background: #7f8c8d; }
+        
     </style>
 </head>
 <body>
-    <div id="habit-list">
-        </div>
-
-    <button class="toggle-btn" onclick="toggleForm()">＋ 新しい習慣を追加</button>
+    
     <div id="add-form">
+        <h3 style="margin-top:0; text-align:center;">新しい習慣を追加</h3>
         <input type="text" id="habit-name" placeholder="習慣名 (例: まくらカバー交換)">
         <div style="display: flex; gap: 10px;">
             <input type="number" id="habit-interval" placeholder="目標間隔" style="flex: 2;">
@@ -85,8 +95,14 @@
                 <option value="hours">時間</option>
             </select>
         </div>
-        <button class="main-btn" onclick="addHabit()">追加する</button>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+             <button class="main-btn" onclick="addHabit()" style="flex: 1;">追加</button>
+             <button class="main-btn" onclick="toggleForm()" style="flex: 1; background:#95a5a6;">閉じる</button>
+        </div>
     </div>
+
+    <div id="habit-list">
+        </div>
 
     <script>
         let habits = JSON.parse(localStorage.getItem('habits')) || [];
@@ -101,6 +117,7 @@
             list.innerHTML = '';
             const now = Date.now();
 
+            // 1. 既存の習慣カードを描画
             habits.forEach((habit, index) => {
                 const elapsedMs = now - habit.lastDone;
                 const elapsedHours = elapsedMs / (1000 * 60 * 60);
@@ -116,7 +133,7 @@
                 else if (elapsedHours >= targetHours * 0.8) statusClass = 'warning';
 
                 const div = document.createElement('div');
-                div.className = `habit-card ${statusClass}`;
+                div.className = `card-base habit-card ${statusClass}`;
                 div.onclick = (e) => {
                     if(e.target.className !== 'delete-btn') updateHabit(index);
                 };
@@ -131,6 +148,13 @@
                 `;
                 list.appendChild(div);
             });
+
+            // 2. 最後に「追加ボタン」カードを描画
+            const addBtnDiv = document.createElement('div');
+            addBtnDiv.className = 'card-base add-card-btn';
+            addBtnDiv.innerHTML = '+';
+            addBtnDiv.onclick = toggleForm;
+            list.appendChild(addBtnDiv);
         }
 
         function addHabit() {
@@ -140,7 +164,7 @@
             if (name && interval) {
                 habits.push({ name, interval, unit, lastDone: Date.now() });
                 saveHabits();
-                toggleForm();
+                toggleForm(); // 追加後に閉じる
                 document.getElementById('habit-name').value = '';
                 document.getElementById('habit-interval').value = '';
             }
@@ -162,7 +186,15 @@
 
         function toggleForm() {
             const form = document.getElementById('add-form');
-            form.style.display = form.style.display === 'block' ? 'none' : 'block';
+            if (form.style.display === 'block') {
+                form.style.display = 'none';
+            } else {
+                form.style.display = 'block';
+                // フォームが表示されたらスクロールして見えるようにする
+                form.scrollIntoView({ behavior: 'smooth' });
+                // 入力欄にフォーカス
+                document.getElementById('habit-name').focus();
+            }
         }
 
         renderHabits();
