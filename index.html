@@ -8,22 +8,28 @@
     
     <style>
         /* 全体の基本設定 */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 900px; margin: 0 auto; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f4f4f9; 
+            padding: 10px; /* デフォルトは狭い余白（埋め込み用） */
+            max-width: 900px; 
+            margin: 0 auto; 
+        }
         
-        /* --- 通常モード（大きいサイズ 200px） --- */
+        /* ▼▼▼ デフォルト設定（埋め込み・スマホ用：最小サイズ） ▼▼▼ */
         #habit-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-            padding-bottom: 60px;
-            justify-content: center; 
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); /* 110pxスタート */
+            gap: 8px;
+            margin-bottom: 20px;
+            padding-bottom: 40px;
+            justify-content: center;
         }
 
         .card-base {
             background: #fff;
-            padding: 10px;
-            border-radius: 20px;
+            padding: 6px;
+            border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             cursor: pointer;
             transition: 0.3s;
@@ -42,25 +48,26 @@
         .card-base:active { transform: scale(0.95); transition: 0.1s; }
         .habit-card { border: 3px solid transparent; }
 
+        /* デフォルトは小さい文字 */
         .add-card-btn {
             background: #f0f2f5;
             border: 3px dashed #cbd5e1;
             color: #94a3b8;
-            font-size: 6rem;
+            font-size: 3rem;
             font-weight: bold;
             display: flex;
             justify-content: center;
             align-items: center;
             line-height: 1;
-            padding-bottom: 12px;
+            padding-bottom: 4px;
         }
         .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
         .habit-info { width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
         
         .habit-info h2 { 
-            margin: 0 0 5px 0;
-            font-size: 1.1rem;
+            margin: 0 0 2px 0;
+            font-size: 0.8rem; /* 小さめ */
             color: #444; 
             line-height: 1.3;
             display: -webkit-box;
@@ -72,31 +79,31 @@
         }
         
         .elapsed-time { 
-            font-size: 2.2rem;
+            font-size: 1.3rem; /* 小さめ */
             font-weight: bold; 
-            margin: 5px 0;
+            margin: 2px 0;
             white-space: nowrap;
             line-height: 1;
         }
         .elapsed-label {
-            font-size: 0.85rem;
+            font-size: 0.6rem;
             font-weight: normal;
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 0;
             color: #666;
         }
 
         .next-schedule {
-            font-size: 0.9rem;
+            font-size: 0.65rem;
             color: #555;
             background: #f0f2f5;
-            padding: 4px 12px;
-            border-radius: 12px;
-            margin: 8px 0;
+            padding: 2px 6px;
+            border-radius: 8px;
+            margin: 3px 0;
             white-space: nowrap;
         }
 
-        .status { font-size: 0.8rem; color: #999; margin-top: 4px; }
+        .status { font-size: 0.6rem; color: #999; margin-top: 2px; }
 
         .ok .elapsed-time { color: #2ecc71; }
         .warning { border-color: #f1c40f; }
@@ -106,20 +113,20 @@
 
         .delete-btn { 
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 2px;
+            right: 2px;
             background: transparent; 
             color: #e74c3c; 
             border: none; 
-            font-size: 1.6rem; 
+            font-size: 1rem;
             line-height: 1;
             padding: 5px; 
             cursor: pointer;
             opacity: 0.3; 
             z-index: 2;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -127,32 +134,23 @@
         .delete-btn:hover { opacity: 1; background-color: rgba(231, 76, 60, 0.1); }
 
 
-        /* --- ▼▼▼ 超コンパクトモード（埋め込み用）の設定 ▼▼▼ --- */
-        body.small-mode {
-            padding: 10px; /* 全体の余白も減らす */
+        /* --- ▼▼▼ ラージモード（PC全画面用：条件が揃ったときだけ発動） ▼▼▼ */
+        body.large-mode {
+            padding: 20px;
         }
-        
-        body.small-mode #habit-list,
-        @media (max-width: 600px) {
-            #habit-list {
-                /* 140px → 110px にさらに縮小 */
-                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
-                gap: 8px;
-            }
-            .card-base { padding: 6px; border-radius: 12px; }
-            .add-card-btn { font-size: 3rem; padding-bottom: 4px; }
-            
-            /* 文字サイズを一回り小さく */
-            .habit-info h2 { font-size: 0.8rem; margin: 0 0 2px 0; }
-            .elapsed-time { font-size: 1.3rem; margin: 2px 0; }
-            .elapsed-label { font-size: 0.6rem; margin-bottom: 0; }
-            .next-schedule { font-size: 0.65rem; padding: 2px 6px; margin: 3px 0; border-radius: 8px;}
-            .status { font-size: 0.6rem; margin-top: 2px; }
-            
-            .delete-btn { 
-                width: 24px; height: 24px; font-size: 1rem; top: 2px; right: 2px; 
-            }
+        body.large-mode #habit-list {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* 200pxに巨大化 */
+            gap: 20px;
         }
+        body.large-mode .card-base { padding: 10px; border-radius: 20px; }
+        body.large-mode .add-card-btn { font-size: 6rem; padding-bottom: 12px; }
+        body.large-mode .habit-info h2 { font-size: 1.1rem; margin-bottom: 5px; }
+        body.large-mode .elapsed-time { font-size: 2.2rem; margin: 5px 0; }
+        body.large-mode .elapsed-label { font-size: 0.85rem; margin-bottom: 4px; }
+        body.large-mode .next-schedule { font-size: 0.9rem; padding: 4px 12px; margin: 8px 0; border-radius: 12px; }
+        body.large-mode .status { font-size: 0.8rem; margin-top: 4px; }
+        body.large-mode .delete-btn { width: 40px; height: 40px; font-size: 1.6rem; top: 10px; right: 10px; }
+
 
         /* モーダル */
         .modal-overlay {
@@ -170,6 +168,26 @@
         .btn-danger { background: #e74c3c; color: white; }
         .btn-cancel { background: #95a5a6; color: white; }
         input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        
+        /* サイズ切り替えボタン（右下に配置） */
+        #size-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 90;
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+        #size-toggle:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -177,6 +195,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <div id="size-toggle" onclick="toggleSize()">🔍</div>
 
     <div id="add-modal" class="modal-overlay">
         <div class="modal-box">
@@ -210,19 +230,42 @@
     <div id="habit-list">Loading...</div>
 
     <script>
-        // ▼▼▼ 自動埋め込み判定（Start.meなどで自動で小さくなる設定） ▼▼▼
-        function checkEmbed() {
+        // ▼▼▼ サイズ判定ロジック（ここを修正） ▼▼▼
+        // 基本は「スモールモード」。PCかつ埋め込みじゃない時だけ「ラージモード」にする。
+        function checkScreenSize() {
+            // ローカルストレージに設定があればそれを優先
+            const savedMode = localStorage.getItem('viewMode');
+            if (savedMode === 'large') {
+                document.body.classList.add('large-mode');
+                return;
+            } else if (savedMode === 'small') {
+                document.body.classList.remove('large-mode');
+                return;
+            }
+
+            // 設定がない場合、自動判定
+            // 「幅が800px以上」かつ「Iframeではない（トップレベルウィンドウ）」場合のみ大きくする
             try {
-                // Iframeの中にいるか、URLにembedがあるか確認
-                if (window.self !== window.top || new URLSearchParams(window.location.search).get('embed') === 'true') {
-                    document.body.classList.add('small-mode');
+                if (window.innerWidth > 800 && window.self === window.top) {
+                    document.body.classList.add('large-mode');
+                } else {
+                    document.body.classList.remove('large-mode');
                 }
-            } catch (e) {
-                // クロスオリジンエラーなどで判定できない場合も念のため小型化を試みる
-                document.body.classList.add('small-mode');
+            } catch(e) {
+                // エラーが出たら（Start.meなど）小さいままにする
+                document.body.classList.remove('large-mode');
             }
         }
-        checkEmbed();
+
+        // 手動切り替えボタン用
+        window.toggleSize = function() {
+            const isLarge = document.body.classList.toggle('large-mode');
+            localStorage.setItem('viewMode', isLarge ? 'large' : 'small');
+        };
+
+        // 起動時とリサイズ時にチェック
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         // ▼▼▼ Firebase設定 ▼▼▼
@@ -459,7 +502,7 @@
         };
         
         renderHabits();
-        setInterval(renderHabits, 60000);
+        window.addEventListener('resize', checkScreenSize);
     </script>
 </body>
 </html>
