@@ -8,22 +8,6 @@
         /* 全体の基本設定 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 900px; margin: 0 auto; }
         
-        /* コントロールエリア（並び替え） */
-        .controls {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 10px;
-        }
-        select#sort-selector {
-            padding: 6px 10px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            background: #fff;
-            font-size: 0.9rem;
-            color: #333;
-            cursor: pointer;
-        }
-
         /* カードを並べるコンテナ */
         #habit-list {
             display: grid;
@@ -151,16 +135,6 @@
         </div>
     </div>
 
-    <div class="controls">
-        <select id="sort-selector" onchange="renderHabits()">
-            <option value="default">登録順</option>
-            <option value="status" selected>優先度順 (赤→緑)</option>
-            <option value="time-desc">経過時間 (長い順)</option>
-            <option value="time-asc">経過時間 (短い順)</option>
-            <option value="name">名前順</option>
-        </select>
-    </div>
-
     <div id="habit-list">Loading...</div>
 
     <script>
@@ -206,37 +180,26 @@
             list.innerHTML = '';
             const now = Date.now();
             
-            // ソート設定の取得
-            const sortType = document.getElementById('sort-selector').value;
-
-            // 元のインデックスを保持したまま配列をコピー（重要）
+            // 元のインデックスを保持したまま配列をコピー
             let displayHabits = habits.map((habit, index) => ({ ...habit, originalIndex: index }));
 
-            // ソートロジック
+            // ▼▼▼ 並び替えロジック変更 ▼▼▼
+            // 「目標までの残り時間」が短い順（小さい順）にソート
             displayHabits.sort((a, b) => {
+                // Aの残り時間計算
                 const elapsedA = now - a.lastDone;
+                const targetMsA = (a.unit === 'days' ? a.interval * 24 : a.interval) * 60 * 60 * 1000;
+                const remainingA = targetMsA - elapsedA;
+
+                // Bの残り時間計算
                 const elapsedB = now - b.lastDone;
+                const targetMsB = (b.unit === 'days' ? b.interval * 24 : b.interval) * 60 * 60 * 1000;
+                const remainingB = targetMsB - elapsedB;
 
-                // 状態スコア (危険=3, 注意=2, OK=1)
-                const getStatus = (h, elapsed) => {
-                    const targetMs = (h.unit === 'days' ? h.interval * 24 : h.interval) * 60 * 60 * 1000;
-                    if (elapsed >= targetMs) return 3;
-                    if (elapsed >= targetMs * 0.8) return 2;
-                    return 1;
-                };
-
-                switch (sortType) {
-                    case 'time-desc': return elapsedB - elapsedA;
-                    case 'time-asc': return elapsedA - elapsedB;
-                    case 'name': return a.name.localeCompare(b.name, 'ja');
-                    case 'status':
-                        const scoreA = getStatus(a, elapsedA);
-                        const scoreB = getStatus(b, elapsedB);
-                        // スコアが高い順、同じなら時間が長い順
-                        return (scoreB - scoreA) || (elapsedB - elapsedA);
-                    default: return 0; // 登録順 (ID順)
-                }
+                // 残り時間が少ない順（マイナスが大きい＝超過しているほど上に来る）
+                return remainingA - remainingB;
             });
+            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
             // 表示
             displayHabits.forEach((habit) => {
@@ -339,7 +302,7 @@
                 saveToCloud();
             });
         };
-        // 初期描画
+        
         renderHabits();
         setInterval(renderHabits, 60000);
     </script>
