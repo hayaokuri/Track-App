@@ -3,22 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interval Tracker Grid</title>
+    <title>Interval Tracker</title>
     <style>
         /* 全体の基本設定 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 800px; margin: 0 auto; }
-        h1 { text-align: center; color: #333; margin-bottom: 30px; }
         
-        /* --- ここが今回の主な変更点 --- */
-
         /* カードを並べるコンテナ（グリッド表示の設定） */
         #habit-list {
             display: grid;
             /* 最小幅140pxの列を、画面幅いっぱいに自動で敷き詰める設定 */
-            /* これによりスマホで2列、PCで3～4列のようになります */
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 15px; /* カード間の隙間 */
             margin-bottom: 30px;
+            margin-top: 20px; /* タイトルを消したので上部に少し余白を追加 */
         }
 
         /* 個々のカードのスタイル（正方形・中央揃え） */
@@ -50,17 +47,14 @@
         .elapsed-time { font-size: 1.3rem; font-weight: bold; margin: 10px 0; }
         .status { font-size: 0.7rem; color: #888; }
 
-        /* 状態ごとの色分け（枠線と文字色を変更） */
-        /* 通常(緑) */
+        /* 状態ごとの色分け */
         .ok .elapsed-time { color: #2ecc71; }
-        /* 注意(黄) - 枠線を黄色に */
         .warning { border-color: #f1c40f; }
         .warning .elapsed-time { color: #f1c40f; }
-        /* 危険(赤) - 枠線を赤色に */
         .danger { border-color: #e74c3c; background-color: #fff5f5; }
         .danger .elapsed-time { color: #e74c3c; }
 
-        /* 削除ボタンの調整 */
+        /* 削除ボタン */
         .delete-btn { 
             background: #e74c3c; color: white; border: none; border-radius: 20px; 
             font-size: 0.7rem; padding: 5px 15px; margin-top: 10px; cursor: pointer;
@@ -68,9 +62,7 @@
         }
         .delete-btn:hover { opacity: 1; }
 
-        /* --- 変更点ここまで --- */
-
-        /* 追加フォーム（以前と同じ） */
+        /* 追加フォーム */
         #add-form { display: none; background: #fff; padding: 20px; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         button.main-btn { width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
@@ -80,7 +72,6 @@
     </style>
 </head>
 <body>
-    <h1>前回から何日？</h1>
     <div id="habit-list">
         </div>
 
@@ -98,7 +89,6 @@
     </div>
 
     <script>
-        // --- JavaScriptは以前と全く同じです ---
         let habits = JSON.parse(localStorage.getItem('habits')) || [];
 
         function saveHabits() {
@@ -127,7 +117,6 @@
 
                 const div = document.createElement('div');
                 div.className = `habit-card ${statusClass}`;
-                // カード全体をクリックで更新（削除ボタン以外）
                 div.onclick = (e) => {
                     if(e.target.className !== 'delete-btn') updateHabit(index);
                 };
@@ -165,7 +154,6 @@
         }
 
         function deleteHabit(index) {
-            // 削除時の確認を少しマイルドに
             if (confirm(`「${habits[index].name}」を削除しますか？`)) {
                 habits.splice(index, 1);
                 saveHabits();
