@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interval Tracker</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; color: #333; }
+        .habit-card {
+            background: #fff; padding: 20px; margin-bottom: 15px; border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; transition: 0.3s;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .habit-card:active { transform: scale(0.98); }
+        .habit-info h2 { margin: 0; font-size: 1.2rem; color: #444; }
+        .elapsed-time { font-size: 1.5rem; font-weight: bold; margin-top: 5px; }
+        .status { font-size: 0.8rem; color: #666; }
+        
+        /* 状態ごとの色分け */
+        .ok .elapsed-time { color: #2ecc71; } /* 緑 */
+        .warning .elapsed-time { color: #f1c40f; } /* 黄 */
+        .danger .elapsed-time { color: #e74c3c; } /* 赤 */
+        .danger { border-left: 5px solid #e74c3c; }
+
+        /* 追加フォーム */
+        #add-form { display: none; background: #fff; padding: 20px; border-radius: 12px; margin-top: 20px; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 5px; font-size: 1rem; cursor: pointer; }
+        .toggle-btn { background: #95a5a6; margin-top: 10px; }
+        .delete-btn { background: #e74c3c; margin-top: 5px; font-size: 0.8rem; padding: 5px; width: auto; }
+    </style>
+</head>
+<body>
+    <h1>前回から何日？</h1>
+    <div id="habit-list"></div>
+
+    <button class="toggle-btn" onclick="toggleForm()">＋ 新しい習慣を追加</button>
+    <div id="add-form">
+        <input type="text" id="habit-name" placeholder="習慣名 (例: 筋トレ)">
+        <input type="number" id="habit-interval" placeholder="目標間隔">
+        <select id="habit-unit">
+            <option value="hours">時間</option>
+            <option value="days">日</option>
+        </select>
+        <button onclick="addHabit()">追加</button>
+    </div>
+
+    <script>
+        // データ構造: [{ id: 1, name: '筋トレ', interval: 24 (時間), lastDone: timestamp }]
+        let habits = JSON.parse(localStorage.getItem('habits')) || [];
+
+        function saveHabits() {
+            localStorage.setItem('habits', JSON.stringify(habits));
+            renderHabits();
+        }
+
+        function renderHabits() {
+            const list = document.getElementById('habit-list');
+            list.innerHTML = '';
+            const now = Date.now();
+
+            habits.forEach((habit, index) => {
+                const elapsedMs = now - habit.lastDone;
+                const elapsedHours = elapsedMs / (1000 * 60 * 60);
+                const elapsedDays = elapsedHours / 24;
+                const targetHours = habit.unit === 'days' ? habit.interval * 24 : habit.interval;
+
+                let displayTime = elapsedHours < 24 
+                    ? `${Math.floor(elapsedHours)}時間 前` 
+                    : `${Math.floor(elapsedDays)}日 前`;
+                
+                // 状態判定 (経過時間が目標の80%で黄色、100%で赤)
+                let statusClass = 'ok';
+                if (elapsedHours >= targetHours) statusClass = 'danger';
+                else if (elapsedHours >= targetHours * 0.8) statusClass = 'warning';
+
+                const div = document.createElement('div');
+                div.className = `habit-card ${statusClass}`;
+                div.onclick = (e) => {
+                    if(e.target.className !== 'delete-btn') updateHabit(index);
+                };
+                
+                div.innerHTML = `
+                    <div class="habit-info">
+                        <h2>${habit.name}</h2>
+                        <div class="elapsed-time">${displayTime}</div>
+                        <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : '時間'}ごと</div>
+                    </div>
+                    <button class="delete-btn" onclick="deleteHabit(${index})">削除</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function addHabit() {
+            const name = document.getElementById('habit-name').value;
+            const interval = parseInt(document.getElementById('habit-interval').value);
+            const unit = document.getElementById('habit-unit').value;
+            if (name && interval) {
+                habits.push({ name, interval, unit, lastDone: Date.now() }); // 追加時は「今やった」とする
+                saveHabits();
+                toggleForm();
+                document.getElementById('habit-name').value = '';
+                document.getElementById('habit-interval').value = '';
+            }
+        }
+
+        function updateHabit(index) {
+            if (confirm(`${habits[index].name} を完了しましたか？\n(時間をリセットします)`)) {
+                habits[index].lastDone = Date.now();
+                saveHabits();
+            }
+        }
+
+        function deleteHabit(index) {
+            if (confirm('削除しますか？')) {
+                habits.splice(index, 1);
+                saveHabits();
+            }
+        }
+
+        function toggleForm() {
+            const form = document.getElementById('add-form');
+            form.style.display = form.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // 初期表示と定期更新
+        renderHabits();
+        setInterval(renderHabits, 60000); // 1分ごとに表示更新
+    </script>
+</body>
+</html>
