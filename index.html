@@ -22,7 +22,7 @@
         
         #habit-list {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 横2列 */
+            grid-template-columns: repeat(2, 1fr); /* ▼基本は横2列▼ */
             gap: 12px;
             margin-bottom: 20px;
             padding-bottom: 40px;
@@ -138,10 +138,10 @@
 
 
         /* -------------------------------------------------- */
-        /* ② 埋め込みモード（Iframe内）：横4列・小さめ           */
+        /* ② 埋め込みモード（?embed=true）：横4列・小さめ      */
         /* -------------------------------------------------- */
         body.embed-mode #habit-list {
-            grid-template-columns: repeat(4, 1fr); /* 横4列 */
+            grid-template-columns: repeat(4, 1fr) !important; /* ▼強制的に横4列▼ */
             gap: 6px;
         }
         body.embed-mode .card-base { padding: 4px; border-radius: 8px; }
@@ -254,15 +254,15 @@
         function checkEmbedMode() {
             let isEmbed = false;
             try {
-                // Iframe内にいるか判定
+                // Iframe内にいる場合は自動で埋め込みモード
                 if (window.self !== window.top) {
                     isEmbed = true;
                 }
             } catch (e) {
-                isEmbed = true; // エラーなら安全側に倒して埋め込みとみなす
+                isEmbed = true; 
             }
 
-            // URLパラメータ ?embed=true で強制適用
+            // URLパラメータ ?embed=true があれば強制的に埋め込みモード
             const params = new URLSearchParams(window.location.search);
             if (params.get('embed') === 'true') {
                 isEmbed = true;
