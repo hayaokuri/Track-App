@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M2k! 習慣管理</title>
     <link rel="icon" href="images/favicon.png" type="image/png">
+    
     <style>
         /* 全体の基本設定 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 900px; margin: 0 auto; }
@@ -13,7 +14,7 @@
         #habit-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 15px;
+            gap: 12px; /* 隙間を少し詰める */
             margin-bottom: 30px;
             padding-bottom: 60px;
         }
@@ -21,14 +22,14 @@
         /* 共通カードスタイル */
         .card-base {
             background: #fff;
-            padding: 10px;
+            padding: 8px; /* パディングを少し減らす */
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             cursor: pointer;
             transition: 0.3s;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: space-between; /* 上下に分散配置（あふれ防止） */
             align-items: center;
             text-align: center;
             aspect-ratio: 1 / 1; 
@@ -48,14 +49,17 @@
             color: #94a3b8;
             font-size: 3rem;
             font-weight: bold;
+            justify-content: center; /* 追加ボタンは中央寄せのまま */
         }
         .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
         /* テキスト調整 */
-        .habit-info { width: 100%; }
+        .habit-info { width: 100%; display: flex; flex-direction: column; align-items: center; }
+        
+        /* タイトル設定（少し小さく） */
         .habit-info h2 { 
-            margin: 0 0 5px 0; 
-            font-size: 0.9rem; 
+            margin: 0;
+            font-size: 0.85rem; 
             color: #444; 
             line-height: 1.3;
             display: -webkit-box;
@@ -63,11 +67,26 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
-            height: 2.6em; 
+            min-height: 2.6em; /* 固定高さではなく最小高さに */
+            margin-bottom: 2px;
         }
         
-        .elapsed-time { font-size: 1.1rem; font-weight: bold; margin: 5px 0; }
-        .status { font-size: 0.7rem; color: #888; }
+        /* 時間表示設定（サイズ調整と折り返し防止） */
+        .elapsed-time { 
+            font-size: 0.95rem; /* サイズを縮小して1行に収める */
+            font-weight: bold; 
+            margin: 3px 0;
+            white-space: nowrap; /* 勝手な改行を禁止 */
+        }
+        
+        /* 「完了から」の部分だけ小さくする */
+        .elapsed-label {
+            font-size: 0.75rem;
+            font-weight: normal;
+            margin-right: 2px;
+        }
+
+        .status { font-size: 0.65rem; color: #888; }
 
         /* 状態ごとの色 */
         .ok .elapsed-time { color: #2ecc71; }
@@ -79,7 +98,7 @@
         /* 削除ボタン */
         .delete-btn { 
             background: #e74c3c; color: white; border: none; border-radius: 20px; 
-            font-size: 0.7rem; padding: 4px 10px; margin-top: 8px; cursor: pointer;
+            font-size: 0.65rem; padding: 4px 10px; margin-top: 4px; cursor: pointer;
             opacity: 0.7; z-index: 2;
         }
         .delete-btn:hover { opacity: 1; }
@@ -181,30 +200,22 @@
             list.innerHTML = '';
             const now = Date.now();
             
-            // 元のインデックスを保持したまま配列をコピー
+            // ソートロジック（残り時間が短い順、超過は最優先）
             let displayHabits = habits.map((habit, index) => ({ ...habit, originalIndex: index }));
-
-            // ▼▼▼ 並び替えロジック変更 ▼▼▼
-            // 「目標までの残り時間」が短い順（小さい順）にソート
             displayHabits.sort((a, b) => {
-                // Aの残り時間計算
                 const elapsedA = now - a.lastDone;
                 const targetMsA = (a.unit === 'days' ? a.interval * 24 : a.interval) * 60 * 60 * 1000;
                 const remainingA = targetMsA - elapsedA;
 
-                // Bの残り時間計算
                 const elapsedB = now - b.lastDone;
                 const targetMsB = (b.unit === 'days' ? b.interval * 24 : b.interval) * 60 * 60 * 1000;
                 const remainingB = targetMsB - elapsedB;
 
-                // 残り時間が少ない順（マイナスが大きい＝超過しているほど上に来る）
                 return remainingA - remainingB;
             });
-            // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-            // 表示
             displayHabits.forEach((habit) => {
-                const originalIndex = habit.originalIndex; // 削除・更新はこのIDを使う
+                const originalIndex = habit.originalIndex;
 
                 const elapsedMs = now - habit.lastDone;
                 const elapsedMinutes = elapsedMs / (1000 * 60);
@@ -236,7 +247,6 @@
                             '完了としてリセットしますか？',
                             'btn-primary',
                             () => {
-                                // 元の配列のインデックスを使って更新
                                 habits[originalIndex].lastDone = Date.now();
                                 saveToCloud();
                             }
@@ -244,10 +254,11 @@
                     }
                 };
                 
+                // 「完了から」を小さく表示するためのspanタグを追加
                 div.innerHTML = `
                     <div class="habit-info">
                         <h2>${habit.name}</h2>
-                        <div class="elapsed-time">完了から${displayTime}</div>
+                        <div class="elapsed-time"><span class="elapsed-label">完了から</span>${displayTime}</div>
                         <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : 'h'}</div>
                     </div>
                     <button class="delete-btn" onclick="askDelete(${originalIndex})">削除</button>
@@ -255,7 +266,6 @@
                 list.appendChild(div);
             });
 
-            // 追加ボタン
             const addBtnDiv = document.createElement('div');
             addBtnDiv.className = 'card-base add-card-btn';
             addBtnDiv.innerHTML = '+';
