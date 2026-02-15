@@ -12,20 +12,19 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             background: #f4f4f9; 
             margin: 0 auto; 
-            /* デフォルト（狭い画面用）の余白 */
-            padding: 10px;
+            padding: 15px; /* 余白を少し確保 */
             max-width: 100%; 
         }
         
         /* -------------------------------------------------- */
-        /* ① ベーススタイル：スモールモード（スマホ・埋め込み用）   */
-        /* 画面幅が 800px 未満のときはこの設定が適用されます       */
+        /* ① デフォルトスタイル：スマホ・埋め込み（横2列・大きめ）   */
         /* -------------------------------------------------- */
         
         #habit-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); /* 小さいカード */
-            gap: 8px;
+            /* ▼▼▼ ここを変更：強制的に「横2列」にします ▼▼▼ */
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 15px; /* 間隔も広めに */
             margin-bottom: 20px;
             padding-bottom: 40px;
             justify-content: center;
@@ -33,8 +32,8 @@
 
         .card-base {
             background: #fff;
-            padding: 6px;
-            border-radius: 12px;
+            padding: 10px; /* 余白も広げる */
+            border-radius: 16px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             cursor: pointer;
             transition: 0.3s;
@@ -53,25 +52,27 @@
         .card-base:active { transform: scale(0.95); transition: 0.1s; }
         .habit-card { border: 3px solid transparent; }
 
+        /* プラスボタンも大きく戻す */
         .add-card-btn {
             background: #f0f2f5;
             border: 3px dashed #cbd5e1;
             color: #94a3b8;
-            font-size: 3rem; /* 文字小さめ */
+            font-size: 5rem; /* 大きく */
             font-weight: bold;
             display: flex;
             justify-content: center;
             align-items: center;
             line-height: 1;
-            padding-bottom: 4px;
+            padding-bottom: 8px;
         }
         .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
         .habit-info { width: 100%; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
         
+        /* 文字サイズも大きく戻す */
         .habit-info h2 { 
-            margin: 0 0 2px 0;
-            font-size: 0.8rem;
+            margin: 0 0 4px 0;
+            font-size: 1rem; /* 大きく */
             color: #444; 
             line-height: 1.3;
             display: -webkit-box;
@@ -83,14 +84,14 @@
         }
         
         .elapsed-time { 
-            font-size: 1.3rem;
+            font-size: 1.8rem; /* 大きく */
             font-weight: bold; 
-            margin: 2px 0;
+            margin: 4px 0;
             white-space: nowrap;
             line-height: 1;
         }
         .elapsed-label {
-            font-size: 0.6rem;
+            font-size: 0.75rem;
             font-weight: normal;
             display: block;
             margin-bottom: 0;
@@ -98,16 +99,16 @@
         }
 
         .next-schedule {
-            font-size: 0.65rem;
+            font-size: 0.8rem;
             color: #555;
             background: #f0f2f5;
-            padding: 2px 6px;
-            border-radius: 8px;
-            margin: 3px 0;
+            padding: 3px 10px;
+            border-radius: 10px;
+            margin: 6px 0;
             white-space: nowrap;
         }
 
-        .status { font-size: 0.6rem; color: #999; margin-top: 2px; }
+        .status { font-size: 0.7rem; color: #999; margin-top: 2px; }
 
         .ok .elapsed-time { color: #2ecc71; }
         .warning { border-color: #f1c40f; }
@@ -117,20 +118,20 @@
 
         .delete-btn { 
             position: absolute;
-            top: 2px;
-            right: 2px;
+            top: 5px;
+            right: 5px;
             background: transparent; 
             color: #e74c3c; 
             border: none; 
-            font-size: 1rem;
+            font-size: 1.4rem;
             line-height: 1;
             padding: 5px; 
             cursor: pointer;
             opacity: 0.3; 
             z-index: 2;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 35px;
+            height: 35px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -140,14 +141,15 @@
 
         /* -------------------------------------------------- */
         /* ② ラージモード（PC全画面用）                         */
-        /* 画面幅が 800px 以上のときだけ、自動で上書きされます       */
+        /* 画面幅が 800px 以上のときだけ適用                   */
         /* -------------------------------------------------- */
         
         @media (min-width: 800px) {
             body { padding: 20px; max-width: 900px; }
             
             #habit-list {
-                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* 大きく */
+                /* PCでは画面幅に合わせて自動で並べる（3列〜） */
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
                 gap: 20px;
             }
             .card-base { padding: 10px; border-radius: 20px; }
@@ -233,6 +235,33 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const DOC_ID = "my_habit_data"; 
+
+        // ▼▼▼ 自動レイアウト判定（強制モード） ▼▼▼
+        function checkScreenSize() {
+            const params = new URLSearchParams(window.location.search);
+            const forceMode = params.get('mode');
+
+            // URLパラメータによる強制適用
+            if (forceMode === 'pc') {
+                document.body.classList.add('large-mode'); // 強制PC表示
+                return;
+            } else if (forceMode === 'mobile') {
+                document.body.classList.remove('large-mode'); // 強制スマホ表示
+                return;
+            }
+            
+            // 通常の自動判定（800px以上ならPCモード）
+            // ※CSSメディアクエリでも制御していますが、念のためクラス制御も残します
+            if (window.innerWidth >= 800) {
+                document.body.classList.add('large-mode');
+            } else {
+                document.body.classList.remove('large-mode');
+            }
+        }
+        
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         let habits = [];
         let pendingAction = null;
@@ -453,6 +482,7 @@
         };
         
         renderHabits();
+        window.addEventListener('resize', checkScreenSize);
     </script>
 </body>
 </html>
