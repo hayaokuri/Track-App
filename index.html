@@ -124,17 +124,18 @@
     <div id="habit-list">Loading...</div>
 
     <script>
-        // ▼▼▼ ここが自動で置き換わります ▼▼▼
+        // ▼▼▼ あなたのFirebase設定 ▼▼▼
         const firebaseConfig = {
-            apiKey: "${FIREBASE_API_KEY}",
-            authDomain: "${FIREBASE_AUTH_DOMAIN}",
-            projectId: "${FIREBASE_PROJECT_ID}",
-            storageBucket: "${FIREBASE_STORAGE_BUCKET}",
-            messagingSenderId: "${FIREBASE_MESSAGING_SENDER_ID}",
-            appId: "${FIREBASE_APP_ID}"
+            apiKey: "AIzaSyDknkJ_O5CysoPONKCrpjFvRiDXlpyfnj8",
+            authDomain: "habit-tracker-ca505.firebaseapp.com",
+            projectId: "habit-tracker-ca505",
+            storageBucket: "habit-tracker-ca505.firebasestorage.app",
+            messagingSenderId: "926960060204",
+            appId: "1:926960060204:web:e02d13045ac55e1a81ce89"
         };
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
+        // Firebase初期化
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const DOC_ID = "my_habit_data"; 
@@ -142,6 +143,7 @@
         let habits = [];
         let pendingAction = null;
 
+        // リアルタイム同期の設定
         db.collection("data").doc(DOC_ID).onSnapshot((doc) => {
             if (doc.exists) {
                 habits = doc.data().list || [];
@@ -150,11 +152,17 @@
                 habits = [];
                 renderHabits();
             }
+        }, (error) => {
+            console.error("データ取得エラー:", error);
+            // エラー時はlocalStorageなどのバックアップを表示する処理をここに入れても良い
         });
 
         function saveToCloud() {
             db.collection("data").doc(DOC_ID).set({ list: habits })
-                .catch((error) => console.error("Error writing document: ", error));
+                .catch((error) => {
+                    console.error("保存エラー:", error);
+                    alert("保存できませんでした。通信環境を確認してください。");
+                });
         }
 
         function renderHabits() {
