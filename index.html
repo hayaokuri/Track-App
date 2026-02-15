@@ -127,23 +127,30 @@
         .delete-btn:hover { opacity: 1; background-color: rgba(231, 76, 60, 0.1); }
 
 
-        /* --- ▼▼▼ コンパクトモード（埋め込み・スマホ用）の設定 ▼▼▼ --- */
-        /* クラス .small-mode が付いているか、画面幅が600px以下の場合に適用 */
+        /* --- ▼▼▼ 超コンパクトモード（埋め込み用）の設定 ▼▼▼ --- */
+        body.small-mode {
+            padding: 10px; /* 全体の余白も減らす */
+        }
+        
         body.small-mode #habit-list,
         @media (max-width: 600px) {
             #habit-list {
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* 小さく */
-                gap: 10px;
+                /* 140px → 110px にさらに縮小 */
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+                gap: 8px;
             }
-            .card-base { padding: 8px; border-radius: 14px; }
-            .add-card-btn { font-size: 4rem; padding-bottom: 6px; }
-            .habit-info h2 { font-size: 0.9rem; margin: 0 0 2px 0; }
-            .elapsed-time { font-size: 1.6rem; margin: 2px 0; }
-            .elapsed-label { font-size: 0.7rem; margin-bottom: 2px; }
-            .next-schedule { font-size: 0.75rem; padding: 2px 8px; margin: 4px 0; }
-            .status { font-size: 0.7rem; }
+            .card-base { padding: 6px; border-radius: 12px; }
+            .add-card-btn { font-size: 3rem; padding-bottom: 4px; }
+            
+            /* 文字サイズを一回り小さく */
+            .habit-info h2 { font-size: 0.8rem; margin: 0 0 2px 0; }
+            .elapsed-time { font-size: 1.3rem; margin: 2px 0; }
+            .elapsed-label { font-size: 0.6rem; margin-bottom: 0; }
+            .next-schedule { font-size: 0.65rem; padding: 2px 6px; margin: 3px 0; border-radius: 8px;}
+            .status { font-size: 0.6rem; margin-top: 2px; }
+            
             .delete-btn { 
-                width: 30px; height: 30px; font-size: 1.2rem; top: 5px; right: 5px; 
+                width: 24px; height: 24px; font-size: 1rem; top: 2px; right: 2px; 
             }
         }
 
@@ -203,12 +210,19 @@
     <div id="habit-list">Loading...</div>
 
     <script>
-        // ▼▼▼ 埋め込みモードの判定 ▼▼▼
-        // URLに ?embed=true が付いている場合は強制的に小さいモードにする
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('embed') === 'true') {
-            document.body.classList.add('small-mode');
+        // ▼▼▼ 自動埋め込み判定（Start.meなどで自動で小さくなる設定） ▼▼▼
+        function checkEmbed() {
+            try {
+                // Iframeの中にいるか、URLにembedがあるか確認
+                if (window.self !== window.top || new URLSearchParams(window.location.search).get('embed') === 'true') {
+                    document.body.classList.add('small-mode');
+                }
+            } catch (e) {
+                // クロスオリジンエラーなどで判定できない場合も念のため小型化を試みる
+                document.body.classList.add('small-mode');
+            }
         }
+        checkEmbed();
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         // ▼▼▼ Firebase設定 ▼▼▼
