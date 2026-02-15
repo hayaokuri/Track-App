@@ -8,6 +8,22 @@
         /* 全体の基本設定 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 900px; margin: 0 auto; }
         
+        /* コントロールエリア（並び替え） */
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+        select#sort-selector {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #fff;
+            font-size: 0.9rem;
+            color: #333;
+            cursor: pointer;
+        }
+
         /* カードを並べるコンテナ */
         #habit-list {
             display: grid;
@@ -30,10 +46,10 @@
             justify-content: center;
             align-items: center;
             text-align: center;
-            aspect-ratio: 1 / 1; /* 正方形を強制 */
+            aspect-ratio: 1 / 1; 
             box-sizing: border-box;
             position: relative;
-            overflow: hidden; /* はみ出した部分を隠す（レイアウト崩れ防止） */
+            overflow: hidden;
         }
         .card-base:active { transform: scale(0.95); }
 
@@ -50,20 +66,19 @@
         }
         .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
-        /* テキスト調整（ここがレイアウト修正のキモ） */
-        .habit-info { width: 100%; } /* 幅を確保 */
+        /* テキスト調整 */
+        .habit-info { width: 100%; }
         .habit-info h2 { 
             margin: 0 0 5px 0; 
             font-size: 0.9rem; 
             color: #444; 
             line-height: 1.3;
-            /* 長い文字を2行で省略する設定 */
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
-            height: 2.6em; /* 2行分の高さを固定確保してガタつきを防ぐ */
+            height: 2.6em; 
         }
         
         .elapsed-time { font-size: 1.1rem; font-weight: bold; margin: 5px 0; }
@@ -136,10 +151,20 @@
         </div>
     </div>
 
+    <div class="controls">
+        <select id="sort-selector" onchange="renderHabits()">
+            <option value="default">登録順</option>
+            <option value="status" selected>優先度順 (赤→緑)</option>
+            <option value="time-desc">経過時間 (長い順)</option>
+            <option value="time-asc">経過時間 (短い順)</option>
+            <option value="name">名前順</option>
+        </select>
+    </div>
+
     <div id="habit-list">Loading...</div>
 
     <script>
-        // ▼▼▼ Firebase設定 (頂いた情報を埋め込み済み) ▼▼▼
+        // ▼▼▼ Firebase設定 ▼▼▼
         const firebaseConfig = {
             apiKey: "AIzaSyDknkJ_O5CysoPONKCrpjFvRiDXlpyfnj8",
             authDomain: "habit-tracker-ca505.firebaseapp.com",
@@ -180,22 +205,53 @@
             const list = document.getElementById('habit-list');
             list.innerHTML = '';
             const now = Date.now();
+            
+            // ソート設定の取得
+            const sortType = document.getElementById('sort-selector').value;
 
-            habits.forEach((habit, index) => {
+            // 元のインデックスを保持したまま配列をコピー（重要）
+            let displayHabits = habits.map((habit, index) => ({ ...habit, originalIndex: index }));
+
+            // ソートロジック
+            displayHabits.sort((a, b) => {
+                const elapsedA = now - a.lastDone;
+                const elapsedB = now - b.lastDone;
+
+                // 状態スコア (危険=3, 注意=2, OK=1)
+                const getStatus = (h, elapsed) => {
+                    const targetMs = (h.unit === 'days' ? h.interval * 24 : h.interval) * 60 * 60 * 1000;
+                    if (elapsed >= targetMs) return 3;
+                    if (elapsed >= targetMs * 0.8) return 2;
+                    return 1;
+                };
+
+                switch (sortType) {
+                    case 'time-desc': return elapsedB - elapsedA;
+                    case 'time-asc': return elapsedA - elapsedB;
+                    case 'name': return a.name.localeCompare(b.name, 'ja');
+                    case 'status':
+                        const scoreA = getStatus(a, elapsedA);
+                        const scoreB = getStatus(b, elapsedB);
+                        // スコアが高い順、同じなら時間が長い順
+                        return (scoreB - scoreA) || (elapsedB - elapsedA);
+                    default: return 0; // 登録順 (ID順)
+                }
+            });
+
+            // 表示
+            displayHabits.forEach((habit) => {
+                const originalIndex = habit.originalIndex; // 削除・更新はこのIDを使う
+
                 const elapsedMs = now - habit.lastDone;
-                const elapsedMinutes = elapsedMs / (1000 * 60); // 分に変換
+                const elapsedMinutes = elapsedMs / (1000 * 60);
                 const elapsedHours = elapsedMinutes / 60;
                 
-                // --- 時間表示のロジック変更 ---
                 let displayTime = "";
                 if (elapsedMinutes < 60) {
-                    // 60分未満は「◯◯分」
                     displayTime = `${Math.floor(elapsedMinutes)}分`;
                 } else if (elapsedHours < 24) {
-                    // 24時間未満は「◯時間」
                     displayTime = `${Math.floor(elapsedHours)}時間`;
                 } else {
-                    // 24時間以上は「◯日 ◯時間」
                     const days = Math.floor(elapsedHours / 24);
                     const hours = Math.floor(elapsedHours % 24);
                     displayTime = `${days}日 ${hours}時間`;
@@ -216,7 +272,8 @@
                             '完了としてリセットしますか？',
                             'btn-primary',
                             () => {
-                                habits[index].lastDone = Date.now();
+                                // 元の配列のインデックスを使って更新
+                                habits[originalIndex].lastDone = Date.now();
                                 saveToCloud();
                             }
                         );
@@ -229,7 +286,7 @@
                         <div class="elapsed-time">完了から${displayTime}</div>
                         <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : 'h'}</div>
                     </div>
-                    <button class="delete-btn" onclick="askDelete(${index})">削除</button>
+                    <button class="delete-btn" onclick="askDelete(${originalIndex})">削除</button>
                 `;
                 list.appendChild(div);
             });
@@ -282,6 +339,7 @@
                 saveToCloud();
             });
         };
+        // 初期描画
         renderHabits();
         setInterval(renderHabits, 60000);
     </script>
