@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Habit Tracker</title>
+    <title>M2k! 習慣管理</title>
     <style>
-        /* 全体の設定 */
+        /* 全体の基本設定 */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 20px; max-width: 900px; margin: 0 auto; }
         
-        /* カードを並べるコンテナ（正方形グリッド） */
+        /* カードを並べるコンテナ */
         #habit-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -30,16 +30,17 @@
             justify-content: center;
             align-items: center;
             text-align: center;
-            aspect-ratio: 1 / 1; /* 正方形 */
+            aspect-ratio: 1 / 1; /* 正方形を強制 */
             box-sizing: border-box;
             position: relative;
+            overflow: hidden; /* はみ出した部分を隠す（レイアウト崩れ防止） */
         }
         .card-base:active { transform: scale(0.95); }
 
         /* 習慣カード */
         .habit-card { border: 3px solid transparent; }
 
-        /* 追加ボタン（カード型） */
+        /* 追加ボタン */
         .add-card-btn {
             background: #f0f2f5;
             border: 3px dashed #cbd5e1;
@@ -49,9 +50,23 @@
         }
         .add-card-btn:hover { background: #e2e8f0; color: #64748b; border-color: #94a3b8; }
 
-        /* テキスト調整 */
-        .habit-info h2 { margin: 0; font-size: 0.9rem; color: #444; word-break: break-all; margin-bottom: 5px; }
-        .elapsed-time { font-size: 1.2rem; font-weight: bold; margin: 5px 0; }
+        /* テキスト調整（ここがレイアウト修正のキモ） */
+        .habit-info { width: 100%; } /* 幅を確保 */
+        .habit-info h2 { 
+            margin: 0 0 5px 0; 
+            font-size: 0.9rem; 
+            color: #444; 
+            line-height: 1.3;
+            /* 長い文字を2行で省略する設定 */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: 2.6em; /* 2行分の高さを固定確保してガタつきを防ぐ */
+        }
+        
+        .elapsed-time { font-size: 1.1rem; font-weight: bold; margin: 5px 0; }
         .status { font-size: 0.7rem; color: #888; }
 
         /* 状態ごとの色 */
@@ -124,7 +139,7 @@
     <div id="habit-list">Loading...</div>
 
     <script>
-        // ▼▼▼ あなたのFirebase設定 ▼▼▼
+        // ▼▼▼ Firebase設定 (頂いた情報を埋め込み済み) ▼▼▼
         const firebaseConfig = {
             apiKey: "AIzaSyDknkJ_O5CysoPONKCrpjFvRiDXlpyfnj8",
             authDomain: "habit-tracker-ca505.firebaseapp.com",
@@ -135,7 +150,6 @@
         };
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        // Firebase初期化
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const DOC_ID = "my_habit_data"; 
@@ -143,7 +157,6 @@
         let habits = [];
         let pendingAction = null;
 
-        // リアルタイム同期の設定
         db.collection("data").doc(DOC_ID).onSnapshot((doc) => {
             if (doc.exists) {
                 habits = doc.data().list || [];
@@ -153,15 +166,13 @@
                 renderHabits();
             }
         }, (error) => {
-            console.error("データ取得エラー:", error);
-            // エラー時はlocalStorageなどのバックアップを表示する処理をここに入れても良い
+            console.error("Error:", error);
         });
 
         function saveToCloud() {
             db.collection("data").doc(DOC_ID).set({ list: habits })
                 .catch((error) => {
-                    console.error("保存エラー:", error);
-                    alert("保存できませんでした。通信環境を確認してください。");
+                    alert("保存エラー: " + error.message);
                 });
         }
 
@@ -172,13 +183,25 @@
 
             habits.forEach((habit, index) => {
                 const elapsedMs = now - habit.lastDone;
-                const elapsedHours = elapsedMs / (1000 * 60 * 60);
-                const elapsedDays = elapsedHours / 24;
-                const targetHours = habit.unit === 'days' ? habit.interval * 24 : habit.interval;
+                const elapsedMinutes = elapsedMs / (1000 * 60); // 分に変換
+                const elapsedHours = elapsedMinutes / 60;
+                
+                // --- 時間表示のロジック変更 ---
+                let displayTime = "";
+                if (elapsedMinutes < 60) {
+                    // 60分未満は「◯◯分」
+                    displayTime = `${Math.floor(elapsedMinutes)}分`;
+                } else if (elapsedHours < 24) {
+                    // 24時間未満は「◯時間」
+                    displayTime = `${Math.floor(elapsedHours)}時間`;
+                } else {
+                    // 24時間以上は「◯日 ◯時間」
+                    const days = Math.floor(elapsedHours / 24);
+                    const hours = Math.floor(elapsedHours % 24);
+                    displayTime = `${days}日 ${hours}時間`;
+                }
 
-                let displayTime = elapsedHours < 24 
-                    ? `${Math.floor(elapsedHours)}h` 
-                    : `${Math.floor(elapsedDays)}d`;
+                const targetHours = habit.unit === 'days' ? habit.interval * 24 : habit.interval;
                 
                 let statusClass = 'ok';
                 if (elapsedHours >= targetHours) statusClass = 'danger';
@@ -203,7 +226,7 @@
                 div.innerHTML = `
                     <div class="habit-info">
                         <h2>${habit.name}</h2>
-                        <div class="elapsed-time">${displayTime}</div>
+                        <div class="elapsed-time">完了から${displayTime}</div>
                         <div class="status">目標: ${habit.interval}${habit.unit === 'days' ? '日' : 'h'}</div>
                     </div>
                     <button class="delete-btn" onclick="askDelete(${index})">削除</button>
@@ -211,7 +234,7 @@
                 list.appendChild(div);
             });
 
-            // 追加ボタン（正方形カードとして最後尾に追加）
+            // 追加ボタン
             const addBtnDiv = document.createElement('div');
             addBtnDiv.className = 'card-base add-card-btn';
             addBtnDiv.innerHTML = '+';
@@ -219,7 +242,7 @@
             list.appendChild(addBtnDiv);
         }
 
-        // --- 以下ロジックは変更なし ---
+        // --- その他関数 ---
         function addHabit() {
             const name = document.getElementById('habit-name').value;
             const interval = parseInt(document.getElementById('habit-interval').value);
