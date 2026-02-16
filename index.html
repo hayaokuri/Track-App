@@ -51,7 +51,6 @@
         .card-base:active { transform: scale(0.95); transition: 0.1s; }
         .habit-card { border: 3px solid transparent; }
 
-        /* デフォルトは大きめの文字サイズ */
         .add-card-btn {
             background: #f0f2f5;
             border: 3px dashed #cbd5e1;
@@ -144,42 +143,13 @@
             grid-template-columns: repeat(4, 1fr) !important;
             gap: 6px;
         }
-        
-        /* カード内の余白を少し詰める */
         body.embed-mode .card-base { padding: 4px 2px; border-radius: 10px; }
-        
-        /* プラスボタン */
         body.embed-mode .add-card-btn { font-size: 2.5rem; padding-bottom: 4px; }
-        
-        /* タイトル：サイズアップ */
-        body.embed-mode .habit-info h2 { 
-            font-size: 0.8rem; /* ←大きく */
-            margin-bottom: 1px; 
-            line-height: 1.2;
-        }
-        
-        /* 経過時間：サイズアップ */
-        body.embed-mode .elapsed-time { 
-            font-size: 1.3rem; /* ←大きく */
-            margin: 1px 0; 
-            letter-spacing: -1px; /* 数字の間隔を少し詰める */
-        }
-        
-        /* ラベル（完了から） */
+        body.embed-mode .habit-info h2 { font-size: 0.8rem; margin-bottom: 1px; line-height: 1.2; }
+        body.embed-mode .elapsed-time { font-size: 1.3rem; margin: 1px 0; letter-spacing: -1px; }
         body.embed-mode .elapsed-label { font-size: 0.55rem; color: #777; }
-        
-        /* 次回予定：サイズアップ */
-        body.embed-mode .next-schedule { 
-            font-size: 0.65rem; /* ←大きく */
-            padding: 1px 5px; 
-            margin: 2px 0; 
-            border-radius: 6px; 
-        }
-        
-        /* 目標ステータス */
+        body.embed-mode .next-schedule { font-size: 0.65rem; padding: 1px 5px; margin: 2px 0; border-radius: 6px; }
         body.embed-mode .status { font-size: 0.6rem; margin-top: 1px; }
-        
-        /* 削除ボタン */
         body.embed-mode .delete-btn { width: 20px; height: 20px; font-size: 0.9rem; top: 0; right: 0; }
 
 
@@ -194,13 +164,11 @@
             }
             body:not(.embed-mode) .card-base { padding: 10px; border-radius: 20px; }
             body:not(.embed-mode) .add-card-btn { font-size: 6rem; padding-bottom: 12px; }
-            
             body:not(.embed-mode) .habit-info h2 { font-size: 1.1rem; margin-bottom: 5px; }
             body:not(.embed-mode) .elapsed-time { font-size: 2.2rem; margin: 5px 0; }
             body:not(.embed-mode) .elapsed-label { font-size: 0.85rem; margin-bottom: 4px; }
             body:not(.embed-mode) .next-schedule { font-size: 0.9rem; padding: 4px 12px; margin: 8px 0; border-radius: 12px; }
             body:not(.embed-mode) .status { font-size: 0.8rem; margin-top: 4px; }
-            
             body:not(.embed-mode) .delete-btn { width: 40px; height: 40px; font-size: 1.6rem; top: 10px; right: 10px; }
         }
 
@@ -221,6 +189,43 @@
         .btn-danger { background: #e74c3c; color: white; }
         .btn-cancel { background: #95a5a6; color: white; }
         input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+
+        /* --- ▼Undoトースト（通知バー）のスタイル▼ --- */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px); /* 初期は下に隠す */
+            background: #333;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            opacity: 0;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 200;
+            font-size: 0.9rem;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+        #undo-btn {
+            background: transparent;
+            border: none;
+            color: #4da6ff;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0;
+            font-size: 0.9rem;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -228,6 +233,11 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <div id="toast">
+        <span id="toast-message">完了しました</span>
+        <button id="undo-btn" onclick="execUndo()">元に戻す</button>
+    </div>
 
     <div id="add-modal" class="modal-overlay">
         <div class="modal-box">
@@ -281,9 +291,7 @@
             let isEmbed = false;
             try {
                 if (window.self !== window.top) isEmbed = true;
-            } catch (e) {
-                isEmbed = true; 
-            }
+            } catch (e) { isEmbed = true; }
 
             const params = new URLSearchParams(window.location.search);
             if (params.get('embed') === 'true') isEmbed = true;
@@ -294,7 +302,6 @@
                 document.body.classList.remove('embed-mode');
             }
         }
-        
         checkEmbedMode();
         window.addEventListener('resize', checkEmbedMode);
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
@@ -304,6 +311,10 @@
         let editingIndex = null;
         let longPressTimer = null;
         let isLongPress = false;
+
+        // ▼▼▼ Undo機能用変数 ▼▼▼
+        let undoTimer = null;
+        let currentUndoAction = null;
 
         db.collection("data").doc(DOC_ID).onSnapshot((doc) => {
             if (doc.exists) {
@@ -323,6 +334,35 @@
                     alert("保存エラー: " + error.message);
                 });
         }
+
+        // ▼▼▼ Undo機能の実装 ▼▼▼
+        function showToast(message, undoAction) {
+            const toast = document.getElementById('toast');
+            const msgSpan = document.getElementById('toast-message');
+            
+            if (undoTimer) clearTimeout(undoTimer);
+            
+            currentUndoAction = undoAction;
+            msgSpan.innerText = message;
+            
+            toast.classList.add('show');
+            
+            // 5秒後に消える
+            undoTimer = setTimeout(() => {
+                toast.classList.remove('show');
+                currentUndoAction = null;
+            }, 5000);
+        }
+
+        function execUndo() {
+            if (currentUndoAction) {
+                currentUndoAction(); // 保存しておいた復元処理を実行
+                currentUndoAction = null;
+                document.getElementById('toast').classList.remove('show');
+                if (undoTimer) clearTimeout(undoTimer);
+            }
+        }
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         function renderHabits() {
             const list = document.getElementById('habit-list');
@@ -408,9 +448,18 @@
                             '完了としてリセットしますか？',
                             'btn-primary',
                             () => {
+                                // ▼Undo用に古い時間を保存
+                                const oldTime = habits[originalIndex].lastDone;
+                                
                                 habits[originalIndex].lastDone = Date.now();
                                 saveToCloud();
                                 triggerConfetti();
+                                
+                                // ▼Undoトーストを表示
+                                showToast('完了しました', () => {
+                                    habits[originalIndex].lastDone = oldTime;
+                                    saveToCloud();
+                                });
                             }
                         );
                     }
@@ -510,10 +559,20 @@
             if (pendingAction) pendingAction();
             closeConfirmModal();
         };
+        
         window.askDelete = function(index) {
             showConfirm('削除', `「${habits[index].name}」を削除しますか？`, 'btn-danger', () => {
+                // ▼Undo用に削除するデータを保存
+                const deletedItem = habits[index];
+                
                 habits.splice(index, 1);
                 saveToCloud();
+                
+                // ▼Undoトーストを表示
+                showToast('削除しました', () => {
+                    habits.splice(index, 0, deletedItem);
+                    saveToCloud();
+                });
             });
         };
         
