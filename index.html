@@ -146,7 +146,6 @@
         }
         body.embed-mode .card-base { padding: 4px 2px; border-radius: 10px; }
         body.embed-mode .add-card-btn { font-size: 2.5rem; padding-bottom: 4px; }
-        
         body.embed-mode .habit-info h2 { font-size: 0.8rem; margin-bottom: 1px; line-height: 1.2; }
         body.embed-mode .elapsed-time { font-size: 1.3rem; margin: 1px 0; letter-spacing: -1px; }
         body.embed-mode .elapsed-label { font-size: 0.55rem; color: #777; }
@@ -367,7 +366,6 @@
             displayHabits.forEach((habit) => {
                 const originalIndex = habit.originalIndex;
 
-                // 時間計算
                 const targetMs = (habit.unit === 'days' ? habit.interval * 24 : habit.interval) * 60 * 60 * 1000;
                 const elapsedMs = now - habit.lastDone;
                 const remainingMs = targetMs - elapsedMs;
@@ -391,28 +389,17 @@
                 const date = nextDeadline.getDate();
                 const nextScheduleStr = `${month}月${date}日`;
 
-                // ▼▼▼ ハイブリッド判定ロジック ▼▼▼
                 let statusClass = 'ok';
-
                 if (elapsedMs >= targetMs) {
-                    statusClass = 'danger'; // 100%超過
+                    statusClass = 'danger';
                 } else {
-                    // 長期判定：目標時間が48時間（2日）を超えるか？
                     const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
-                    
                     if (isLongTerm) {
-                        // 長期：残り24時間を切ったら黄色
-                        if (remainingMs <= (24 * 60 * 60 * 1000)) {
-                            statusClass = 'warning';
-                        }
+                        if (remainingMs <= (24 * 60 * 60 * 1000)) statusClass = 'warning';
                     } else {
-                        // 短期：80%経過したら黄色
-                        if ((elapsedMs / targetMs) >= 0.8) {
-                            statusClass = 'warning';
-                        }
+                        if ((elapsedMs / targetMs) >= 0.8) statusClass = 'warning';
                     }
                 }
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
@@ -557,6 +544,7 @@
         };
         
         renderHabits();
+        setInterval(renderHabits, 60000); // 1分ごとに自動更新
     </script>
 </body>
 </html>
