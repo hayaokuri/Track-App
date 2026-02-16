@@ -51,6 +51,7 @@
         .card-base:active { transform: scale(0.95); transition: 0.1s; }
         .habit-card { border: 3px solid transparent; }
 
+        /* デフォルトは大きめの文字サイズ */
         .add-card-btn {
             background: #f0f2f5;
             border: 3px dashed #cbd5e1;
@@ -145,6 +146,7 @@
         }
         body.embed-mode .card-base { padding: 4px 2px; border-radius: 10px; }
         body.embed-mode .add-card-btn { font-size: 2.5rem; padding-bottom: 4px; }
+        
         body.embed-mode .habit-info h2 { font-size: 0.8rem; margin-bottom: 1px; line-height: 1.2; }
         body.embed-mode .elapsed-time { font-size: 1.3rem; margin: 1px 0; letter-spacing: -1px; }
         body.embed-mode .elapsed-label { font-size: 0.55rem; color: #777; }
@@ -190,12 +192,12 @@
         .btn-cancel { background: #95a5a6; color: white; }
         input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
 
-        /* --- ▼Undoトースト（通知バー）のスタイル▼ --- */
+        /* Undoトースト */
         #toast {
             position: fixed;
             bottom: 20px;
             left: 50%;
-            transform: translateX(-50%) translateY(100px); /* 初期は下に隠す */
+            transform: translateX(-50%) translateY(100px);
             background: #333;
             color: #fff;
             padding: 12px 24px;
@@ -286,33 +288,24 @@
         const db = firebase.firestore();
         const DOC_ID = "my_habit_data"; 
 
-        // ▼▼▼ 埋め込み判定ロジック ▼▼▼
+        // 埋め込み判定
         function checkEmbedMode() {
             let isEmbed = false;
-            try {
-                if (window.self !== window.top) isEmbed = true;
-            } catch (e) { isEmbed = true; }
-
+            try { if (window.self !== window.top) isEmbed = true; } catch (e) { isEmbed = true; }
             const params = new URLSearchParams(window.location.search);
             if (params.get('embed') === 'true') isEmbed = true;
 
-            if (isEmbed) {
-                document.body.classList.add('embed-mode');
-            } else {
-                document.body.classList.remove('embed-mode');
-            }
+            if (isEmbed) document.body.classList.add('embed-mode');
+            else document.body.classList.remove('embed-mode');
         }
         checkEmbedMode();
         window.addEventListener('resize', checkEmbedMode);
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         let habits = [];
         let pendingAction = null;
         let editingIndex = null;
         let longPressTimer = null;
         let isLongPress = false;
-
-        // ▼▼▼ Undo機能用変数 ▼▼▼
         let undoTimer = null;
         let currentUndoAction = null;
 
@@ -329,25 +322,17 @@
         });
 
         function saveToCloud() {
-            db.collection("data").doc(DOC_ID).set({ list: habits })
-                .catch((error) => {
-                    alert("保存エラー: " + error.message);
-                });
+            db.collection("data").doc(DOC_ID).set({ list: habits }).catch((error) => { alert("保存エラー: " + error.message); });
         }
 
-        // ▼▼▼ Undo機能の実装 ▼▼▼
+        // Undo機能
         function showToast(message, undoAction) {
             const toast = document.getElementById('toast');
             const msgSpan = document.getElementById('toast-message');
-            
             if (undoTimer) clearTimeout(undoTimer);
-            
             currentUndoAction = undoAction;
             msgSpan.innerText = message;
-            
             toast.classList.add('show');
-            
-            // 5秒後に消える
             undoTimer = setTimeout(() => {
                 toast.classList.remove('show');
                 currentUndoAction = null;
@@ -356,13 +341,12 @@
 
         function execUndo() {
             if (currentUndoAction) {
-                currentUndoAction(); // 保存しておいた復元処理を実行
+                currentUndoAction();
                 currentUndoAction = null;
                 document.getElementById('toast').classList.remove('show');
                 if (undoTimer) clearTimeout(undoTimer);
             }
         }
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         function renderHabits() {
             const list = document.getElementById('habit-list');
@@ -374,18 +358,20 @@
                 const elapsedA = now - a.lastDone;
                 const targetMsA = (a.unit === 'days' ? a.interval * 24 : a.interval) * 60 * 60 * 1000;
                 const remainingA = targetMsA - elapsedA;
-
                 const elapsedB = now - b.lastDone;
                 const targetMsB = (b.unit === 'days' ? b.interval * 24 : b.interval) * 60 * 60 * 1000;
                 const remainingB = targetMsB - elapsedB;
-
                 return remainingA - remainingB;
             });
 
             displayHabits.forEach((habit) => {
                 const originalIndex = habit.originalIndex;
 
+                // 時間計算
+                const targetMs = (habit.unit === 'days' ? habit.interval * 24 : habit.interval) * 60 * 60 * 1000;
                 const elapsedMs = now - habit.lastDone;
+                const remainingMs = targetMs - elapsedMs;
+
                 const elapsedMinutes = elapsedMs / (1000 * 60);
                 const elapsedHours = elapsedMinutes / 60;
                 
@@ -400,37 +386,45 @@
                     displayTime = `${days}日 ${hours}時間`;
                 }
 
-                const targetMs = (habit.unit === 'days' ? habit.interval * 24 : habit.interval) * 60 * 60 * 1000;
                 const nextDeadline = new Date(habit.lastDone + targetMs);
                 const month = nextDeadline.getMonth() + 1;
                 const date = nextDeadline.getDate();
                 const nextScheduleStr = `${month}月${date}日`;
 
-                const targetHours = habit.unit === 'days' ? habit.interval * 24 : habit.interval;
-                
+                // ▼▼▼ ハイブリッド判定ロジック ▼▼▼
                 let statusClass = 'ok';
-                if (elapsedHours >= targetHours) statusClass = 'danger';
-                else if (elapsedHours >= targetHours * 0.8) statusClass = 'warning';
+
+                if (elapsedMs >= targetMs) {
+                    statusClass = 'danger'; // 100%超過
+                } else {
+                    // 長期判定：目標時間が48時間（2日）を超えるか？
+                    const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
+                    
+                    if (isLongTerm) {
+                        // 長期：残り24時間を切ったら黄色
+                        if (remainingMs <= (24 * 60 * 60 * 1000)) {
+                            statusClass = 'warning';
+                        }
+                    } else {
+                        // 短期：80%経過したら黄色
+                        if ((elapsedMs / targetMs) >= 0.8) {
+                            statusClass = 'warning';
+                        }
+                    }
+                }
+                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
                 
                 const startPress = () => {
                     isLongPress = false;
-                    longPressTimer = setTimeout(() => {
-                        isLongPress = true;
-                        openEditModal(originalIndex);
-                    }, 800);
+                    longPressTimer = setTimeout(() => { isLongPress = true; openEditModal(originalIndex); }, 800);
                 };
-                const cancelPress = () => {
-                    clearTimeout(longPressTimer);
-                };
+                const cancelPress = () => { clearTimeout(longPressTimer); };
                 const endPress = (e) => {
                     clearTimeout(longPressTimer);
-                    if (isLongPress) {
-                        e.preventDefault();
-                        return;
-                    }
+                    if (isLongPress) { e.preventDefault(); return; }
                 };
 
                 div.addEventListener('mousedown', startPress);
@@ -448,14 +442,10 @@
                             '完了としてリセットしますか？',
                             'btn-primary',
                             () => {
-                                // ▼Undo用に古い時間を保存
                                 const oldTime = habits[originalIndex].lastDone;
-                                
                                 habits[originalIndex].lastDone = Date.now();
                                 saveToCloud();
                                 triggerConfetti();
-                                
-                                // ▼Undoトーストを表示
                                 showToast('完了しました', () => {
                                     habits[originalIndex].lastDone = oldTime;
                                     saveToCloud();
@@ -488,11 +478,7 @@
         }
 
         function triggerConfetti() {
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         }
 
         function saveHabit() {
@@ -519,7 +505,6 @@
             const nameInput = document.getElementById('habit-name');
             const intervalInput = document.getElementById('habit-interval');
             const unitInput = document.getElementById('habit-unit');
-
             editingIndex = index;
 
             if (index !== null) {
@@ -536,7 +521,6 @@
                 intervalInput.value = '';
                 unitInput.value = 'days';
             }
-
             document.getElementById('add-modal').style.display = 'flex';
             if(index === null) nameInput.focus();
         }
@@ -562,13 +546,9 @@
         
         window.askDelete = function(index) {
             showConfirm('削除', `「${habits[index].name}」を削除しますか？`, 'btn-danger', () => {
-                // ▼Undo用に削除するデータを保存
                 const deletedItem = habits[index];
-                
                 habits.splice(index, 1);
                 saveToCloud();
-                
-                // ▼Undoトーストを表示
                 showToast('削除しました', () => {
                     habits.splice(index, 0, deletedItem);
                     saveToCloud();
