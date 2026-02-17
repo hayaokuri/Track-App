@@ -51,7 +51,6 @@
         .card-base:active { transform: scale(0.95); transition: 0.1s; }
         .habit-card { border: 3px solid transparent; }
 
-        /* デフォルトは大きめの文字サイズ */
         .add-card-btn {
             background: #f0f2f5;
             border: 3px dashed #cbd5e1;
@@ -228,8 +227,8 @@
             text-decoration: underline;
         }
 
-        /* 通知ボタン（右下に配置） */
-        #notify-btn {
+        /* 設定ボタン（Discord設定用） */
+        #settings-btn {
             position: fixed;
             bottom: 20px;
             right: 20px;
@@ -246,10 +245,9 @@
             font-size: 1.2rem;
             opacity: 0.7;
             border: 1px solid #eee;
+            color: #5865F2; /* Discord Color */
         }
-        #notify-btn:hover { opacity: 1; }
-        /* 許可済みなら隠す */
-        #notify-btn.hidden { display: none; }
+        #settings-btn:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -258,7 +256,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-    <div id="notify-btn" onclick="requestNotifyPermission()">🔔</div>
+    <div id="settings-btn" onclick="openSettings()">⚙️</div>
 
     <div id="toast">
         <span id="toast-message">完了しました</span>
@@ -330,30 +328,31 @@
         let undoTimer = null;
         let currentUndoAction = null;
 
-        // ▼▼▼ 通知機能（重複防止用） ▼▼▼
+        // ▼▼▼ Discord通知機能 ▼▼▼
         let notifiedRegistry = JSON.parse(localStorage.getItem('notifiedRegistry')) || {};
+        let discordWebhookUrl = localStorage.getItem('discordWebhookUrl') || "";
 
-        function requestNotifyPermission() {
-            if (!("Notification" in window)) {
-                alert("このブラウザは通知に対応していません");
-                return;
+        function openSettings() {
+            const url = prompt("Discord Webhook URLを入力してください:\n(通知が不要な場合は空欄)", discordWebhookUrl);
+            if (url !== null) {
+                discordWebhookUrl = url.trim();
+                localStorage.setItem('discordWebhookUrl', discordWebhookUrl);
+                alert("設定を保存しました");
             }
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    document.getElementById('notify-btn').classList.add('hidden');
-                    new Notification("通知設定完了", { body: "期限が近づいたらお知らせします！", icon: 'images/icon-192.png' });
-                }
-            });
-        }
-        
-        if (Notification.permission === "granted" || Notification.permission === "denied") {
-            document.getElementById('notify-btn').classList.add('hidden');
         }
 
-        function sendNotification(title, body) {
-            if (Notification.permission === "granted") {
-                new Notification(title, { body, icon: 'images/icon-192.png' });
-            }
+        function sendDiscordNotification(content) {
+            if (!discordWebhookUrl) return;
+
+            // 黄色になった瞬間に通知するための簡易送信
+            fetch(discordWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: "M2k! 習慣管理",
+                    content: content
+                })
+            }).catch(err => console.error("Discord送信エラー:", err));
         }
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
@@ -438,14 +437,13 @@
                 const nextScheduleStr = `${month}月${date}日`;
 
                 let statusClass = 'ok';
+                let isWarning = false;
                 
                 // --- ▼▼▼ 色と通知の判定ロジック ▼▼▼ ---
                 if (elapsedMs >= targetMs) {
-                    // 赤色（期限切れ）
                     statusClass = 'danger';
                 } else {
                     const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
-                    let isWarning = false;
                     
                     if (isLongTerm) {
                         // 長期：残り24時間で黄色
@@ -458,22 +456,11 @@
                     if (isWarning) statusClass = 'warning';
                 }
 
-                // 通知処理（黄色または赤になったら通知）
-                if (statusClass === 'warning' || statusClass === 'danger') {
-                    const uniqueKey = `${habit.name}_${habit.lastDone}`;
+                // 通知処理（黄色になったら1回だけ通知）
+                if (statusClass === 'warning') {
+                    const uniqueKey = `${habit.name}_${habit.lastDone}_warning`; // キーをwarning専用に
                     if (!notifiedRegistry[uniqueKey]) {
-                        
-                        let title = "期限切れ！";
-                        let body = `${habit.name}の目標時間を過ぎました😱`;
-                        
-                        if (statusClass === 'warning') {
-                            title = "そろそろ期限です";
-                            body = `${habit.name}の目標まであと少しです⚠️`;
-                        }
-
-                        sendNotification(title, body);
-                        
-                        // 通知済みフラグを立てる（1回だけ通知）
+                        sendDiscordNotification(`⚠️ **そろそろ期限です**\n「${habit.name}」の目標時間まであと少しです！`);
                         notifiedRegistry[uniqueKey] = true;
                         localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
                     }
@@ -623,7 +610,7 @@
         };
         
         renderHabits();
-        setInterval(renderHabits, 60000); // 1分ごとに自動更新＆通知チェック
+        setInterval(renderHabits, 60000); 
     </script>
 </body>
 </html>
