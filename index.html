@@ -344,7 +344,6 @@
         function sendDiscordNotification(content) {
             if (!discordWebhookUrl) return;
 
-            // 黄色になった瞬間に通知するための簡易送信
             fetch(discordWebhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -391,6 +390,30 @@
                 currentUndoAction = null;
                 document.getElementById('toast').classList.remove('show');
                 if (undoTimer) clearTimeout(undoTimer);
+            }
+        }
+
+        function saveHabit() {
+            const name = document.getElementById('habit-name').value;
+            const interval = parseInt(document.getElementById('habit-interval').value);
+            const unit = document.getElementById('habit-unit').value;
+
+            if (name && interval) {
+                if (editingIndex !== null) {
+                    // 編集モード
+                    habits[editingIndex].name = name;
+                    habits[editingIndex].interval = interval;
+                    habits[editingIndex].unit = unit;
+                } else {
+                    // 新規追加モード
+                    habits.push({ name, interval, unit, lastDone: Date.now() });
+                    
+                    // ▼▼▼ 新規追加の通知 ▼▼▼
+                    sendDiscordNotification(`🆕 **新しい習慣を追加しました**\n「${name}」\n目標: ${interval}${unit === 'days' ? '日' : '時間'}`);
+                    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+                }
+                saveToCloud();
+                closeAddModal();
             }
         }
 
@@ -446,10 +469,8 @@
                     const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
                     
                     if (isLongTerm) {
-                        // 長期：残り24時間で黄色
                         if (remainingMs <= (24 * 60 * 60 * 1000)) isWarning = true;
                     } else {
-                        // 短期：80%で黄色
                         if ((elapsedMs / targetMs) >= 0.8) isWarning = true;
                     }
                     
@@ -458,7 +479,7 @@
 
                 // 通知処理（黄色になったら1回だけ通知）
                 if (statusClass === 'warning') {
-                    const uniqueKey = `${habit.name}_${habit.lastDone}_warning`; // キーをwarning専用に
+                    const uniqueKey = `${habit.name}_${habit.lastDone}_warning`;
                     if (!notifiedRegistry[uniqueKey]) {
                         sendDiscordNotification(`⚠️ **そろそろ期限です**\n「${habit.name}」の目標時間まであと少しです！`);
                         notifiedRegistry[uniqueKey] = true;
@@ -532,24 +553,6 @@
 
         function triggerConfetti() {
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        }
-
-        function saveHabit() {
-            const name = document.getElementById('habit-name').value;
-            const interval = parseInt(document.getElementById('habit-interval').value);
-            const unit = document.getElementById('habit-unit').value;
-
-            if (name && interval) {
-                if (editingIndex !== null) {
-                    habits[editingIndex].name = name;
-                    habits[editingIndex].interval = interval;
-                    habits[editingIndex].unit = unit;
-                } else {
-                    habits.push({ name, interval, unit, lastDone: Date.now() });
-                }
-                saveToCloud();
-                closeAddModal();
-            }
         }
 
         function openEditModal(index) {
