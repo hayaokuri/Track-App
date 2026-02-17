@@ -248,6 +248,11 @@
             color: #5865F2; /* Discord Color */
         }
         #settings-btn:hover { opacity: 1; }
+
+        /* ▼▼▼ 埋め込みモード時は設定ボタンを隠す ▼▼▼ */
+        body.embed-mode #settings-btn {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -328,7 +333,7 @@
         let undoTimer = null;
         let currentUndoAction = null;
 
-        // ▼▼▼ Discord通知機能 ▼▼▼
+        // ▼▼▼ Discord通知機能（Embed対応） ▼▼▼
         let notifiedRegistry = JSON.parse(localStorage.getItem('notifiedRegistry')) || {};
         let discordWebhookUrl = localStorage.getItem('discordWebhookUrl') || "";
 
@@ -341,7 +346,7 @@
             }
         }
 
-        function sendDiscordNotification(content) {
+        function sendDiscordEmbed(embedData) {
             if (!discordWebhookUrl) return;
 
             fetch(discordWebhookUrl, {
@@ -349,7 +354,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     username: "M2k! 習慣管理",
-                    content: content
+                    embeds: [embedData]
                 })
             }).catch(err => console.error("Discord送信エラー:", err));
         }
@@ -408,8 +413,36 @@
                     // 新規追加モード
                     habits.push({ name, interval, unit, lastDone: Date.now() });
                     
-                    // ▼▼▼ 新規追加の通知 ▼▼▼
-                    sendDiscordNotification(`🆕 **新しい習慣を追加しました**\n「${name}」\n目標: ${interval}${unit === 'days' ? '日' : '時間'}`);
+                    // ▼▼▼ 新規追加のEmbed通知 ▼▼▼
+                    const targetMs = (unit === 'days' ? interval * 24 : interval) * 60 * 60 * 1000;
+                    const nextDate = new Date(Date.now() + targetMs);
+                    const nextStr = `${nextDate.getMonth() + 1}月${nextDate.getDate()}日`;
+
+                    const embed = {
+                        title: "🆕 新しい習慣をはじめました！",
+                        color: 0x3498db, // 水色
+                        fields: [
+                            {
+                                name: "📝 習慣名",
+                                value: name,
+                                inline: false
+                            },
+                            {
+                                name: "🎯 目標ペース",
+                                value: `${interval}${unit === 'days' ? '日' : '時間'}ごと`,
+                                inline: true
+                            },
+                            {
+                                name: "📅 次回予定",
+                                value: nextStr,
+                                inline: true
+                            }
+                        ],
+                        footer: { text: "M2k! 習慣管理 - 継続は力なり" },
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    sendDiscordEmbed(embed);
                     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 }
                 saveToCloud();
@@ -462,26 +495,45 @@
                 let statusClass = 'ok';
                 let isWarning = false;
                 
-                // --- ▼▼▼ 色と通知の判定ロジック ▼▼▼ ---
+                // 色と通知の判定
                 if (elapsedMs >= targetMs) {
                     statusClass = 'danger';
                 } else {
                     const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
-                    
                     if (isLongTerm) {
                         if (remainingMs <= (24 * 60 * 60 * 1000)) isWarning = true;
                     } else {
                         if ((elapsedMs / targetMs) >= 0.8) isWarning = true;
                     }
-                    
                     if (isWarning) statusClass = 'warning';
                 }
 
-                // 通知処理（黄色になったら1回だけ通知）
+                // ▼▼▼ 警告（黄色）通知もEmbed化 ▼▼▼
                 if (statusClass === 'warning') {
                     const uniqueKey = `${habit.name}_${habit.lastDone}_warning`;
                     if (!notifiedRegistry[uniqueKey]) {
-                        sendDiscordNotification(`⚠️ **そろそろ期限です**\n「${habit.name}」の目標時間まであと少しです！`);
+                        
+                        const embed = {
+                            title: "⚠️ そろそろ期限です",
+                            description: `「${habit.name}」の目標時間まであと少しです！`,
+                            color: 0xf1c40f, // 黄色
+                            fields: [
+                                {
+                                    name: "⏳ 経過時間",
+                                    value: displayTime,
+                                    inline: true
+                                },
+                                {
+                                    name: "📅 期限",
+                                    value: nextScheduleStr,
+                                    inline: true
+                                }
+                            ],
+                            timestamp: new Date().toISOString()
+                        };
+
+                        sendDiscordEmbed(embed);
+                        
                         notifiedRegistry[uniqueKey] = true;
                         localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
                     }
