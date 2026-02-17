@@ -227,6 +227,29 @@
             font-size: 0.9rem;
             text-decoration: underline;
         }
+
+        /* 通知ボタン（右下に配置） */
+        #notify-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 90;
+            font-size: 1.2rem;
+            opacity: 0.7;
+            border: 1px solid #eee;
+        }
+        #notify-btn:hover { opacity: 1; }
+        /* 許可済みなら隠す */
+        #notify-btn.hidden { display: none; }
     </style>
 </head>
 <body>
@@ -234,6 +257,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <div id="notify-btn" onclick="requestNotifyPermission()">🔔</div>
 
     <div id="toast">
         <span id="toast-message">完了しました</span>
@@ -281,8 +306,6 @@
             messagingSenderId: "926960060204",
             appId: "1:926960060204:web:e02d13045ac55e1a81ce89"
         };
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const DOC_ID = "my_habit_data"; 
@@ -293,7 +316,6 @@
             try { if (window.self !== window.top) isEmbed = true; } catch (e) { isEmbed = true; }
             const params = new URLSearchParams(window.location.search);
             if (params.get('embed') === 'true') isEmbed = true;
-
             if (isEmbed) document.body.classList.add('embed-mode');
             else document.body.classList.remove('embed-mode');
         }
@@ -307,6 +329,33 @@
         let isLongPress = false;
         let undoTimer = null;
         let currentUndoAction = null;
+
+        // ▼▼▼ 通知機能（重複防止用） ▼▼▼
+        let notifiedRegistry = JSON.parse(localStorage.getItem('notifiedRegistry')) || {};
+
+        function requestNotifyPermission() {
+            if (!("Notification" in window)) {
+                alert("このブラウザは通知に対応していません");
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    document.getElementById('notify-btn').classList.add('hidden');
+                    new Notification("通知設定完了", { body: "期限が近づいたらお知らせします！", icon: 'images/icon-192.png' });
+                }
+            });
+        }
+        
+        if (Notification.permission === "granted" || Notification.permission === "denied") {
+            document.getElementById('notify-btn').classList.add('hidden');
+        }
+
+        function sendNotification(title, body) {
+            if (Notification.permission === "granted") {
+                new Notification(title, { body, icon: 'images/icon-192.png' });
+            }
+        }
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         db.collection("data").doc(DOC_ID).onSnapshot((doc) => {
             if (doc.exists) {
@@ -324,7 +373,6 @@
             db.collection("data").doc(DOC_ID).set({ list: habits }).catch((error) => { alert("保存エラー: " + error.message); });
         }
 
-        // Undo機能
         function showToast(message, undoAction) {
             const toast = document.getElementById('toast');
             const msgSpan = document.getElementById('toast-message');
@@ -390,16 +438,47 @@
                 const nextScheduleStr = `${month}月${date}日`;
 
                 let statusClass = 'ok';
+                
+                // --- ▼▼▼ 色と通知の判定ロジック ▼▼▼ ---
                 if (elapsedMs >= targetMs) {
+                    // 赤色（期限切れ）
                     statusClass = 'danger';
                 } else {
                     const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
+                    let isWarning = false;
+                    
                     if (isLongTerm) {
-                        if (remainingMs <= (24 * 60 * 60 * 1000)) statusClass = 'warning';
+                        // 長期：残り24時間で黄色
+                        if (remainingMs <= (24 * 60 * 60 * 1000)) isWarning = true;
                     } else {
-                        if ((elapsedMs / targetMs) >= 0.8) statusClass = 'warning';
+                        // 短期：80%で黄色
+                        if ((elapsedMs / targetMs) >= 0.8) isWarning = true;
+                    }
+                    
+                    if (isWarning) statusClass = 'warning';
+                }
+
+                // 通知処理（黄色または赤になったら通知）
+                if (statusClass === 'warning' || statusClass === 'danger') {
+                    const uniqueKey = `${habit.name}_${habit.lastDone}`;
+                    if (!notifiedRegistry[uniqueKey]) {
+                        
+                        let title = "期限切れ！";
+                        let body = `${habit.name}の目標時間を過ぎました😱`;
+                        
+                        if (statusClass === 'warning') {
+                            title = "そろそろ期限です";
+                            body = `${habit.name}の目標まであと少しです⚠️`;
+                        }
+
+                        sendNotification(title, body);
+                        
+                        // 通知済みフラグを立てる（1回だけ通知）
+                        notifiedRegistry[uniqueKey] = true;
+                        localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
                     }
                 }
+                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
@@ -544,7 +623,7 @@
         };
         
         renderHabits();
-        setInterval(renderHabits, 60000); // 1分ごとに自動更新
+        setInterval(renderHabits, 60000); // 1分ごとに自動更新＆通知チェック
     </script>
 </body>
 </html>
