@@ -227,7 +227,7 @@
             text-decoration: underline;
         }
 
-        /* 設定ボタン（Discord設定用） */
+        /* 設定ボタン */
         #settings-btn {
             position: fixed;
             bottom: 20px;
@@ -245,7 +245,7 @@
             font-size: 1.2rem;
             opacity: 0.7;
             border: 1px solid #eee;
-            color: #5865F2; /* Discord Color */
+            color: #5865F2;
         }
         #settings-btn:hover { opacity: 1; }
 
@@ -346,6 +346,7 @@
             }
         }
 
+        // Embedオブジェクトを受け取って送信する関数
         function sendDiscordEmbed(embedData) {
             if (!discordWebhookUrl) return;
 
@@ -413,10 +414,17 @@
                     // 新規追加モード
                     habits.push({ name, interval, unit, lastDone: Date.now() });
                     
-                    // ▼▼▼ 新規追加のEmbed通知 ▼▼▼
+                    // 新規追加のEmbed通知
                     const targetMs = (unit === 'days' ? interval * 24 : interval) * 60 * 60 * 1000;
                     const nextDate = new Date(Date.now() + targetMs);
-                    const nextStr = `${nextDate.getMonth() + 1}月${nextDate.getDate()}日`;
+                    let nextStr = `${nextDate.getMonth() + 1}月${nextDate.getDate()}日`;
+                    
+                    // 短期目標の場合は時間も追加
+                    if (targetMs <= 48 * 60 * 60 * 1000) {
+                        const hh = nextDate.getHours().toString().padStart(2, '0');
+                        const mm = nextDate.getMinutes().toString().padStart(2, '0');
+                        nextStr += ` ${hh}:${mm}`;
+                    }
 
                     const embed = {
                         title: "🆕 新しい習慣をはじめました！",
@@ -443,7 +451,6 @@
                     };
                     
                     sendDiscordEmbed(embed);
-                    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
                 }
                 saveToCloud();
                 closeAddModal();
@@ -490,7 +497,16 @@
                 const nextDeadline = new Date(habit.lastDone + targetMs);
                 const month = nextDeadline.getMonth() + 1;
                 const date = nextDeadline.getDate();
-                const nextScheduleStr = `${month}月${date}日`;
+                let nextScheduleStr = `${month}月${date}日`;
+                
+                const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
+                
+                // 短期目標の場合は時間も表示
+                if (!isLongTerm) {
+                    const hh = nextDeadline.getHours().toString().padStart(2, '0');
+                    const mm = nextDeadline.getMinutes().toString().padStart(2, '0');
+                    nextScheduleStr += ` ${hh}:${mm}`;
+                }
 
                 let statusClass = 'ok';
                 let isWarning = false;
@@ -499,7 +515,6 @@
                 if (elapsedMs >= targetMs) {
                     statusClass = 'danger';
                 } else {
-                    const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
                     if (isLongTerm) {
                         if (remainingMs <= (24 * 60 * 60 * 1000)) isWarning = true;
                     } else {
@@ -508,7 +523,7 @@
                     if (isWarning) statusClass = 'warning';
                 }
 
-                // ▼▼▼ 警告（黄色）通知もEmbed化 ▼▼▼
+                // 警告（黄色）通知
                 if (statusClass === 'warning') {
                     const uniqueKey = `${habit.name}_${habit.lastDone}_warning`;
                     if (!notifiedRegistry[uniqueKey]) {
@@ -538,7 +553,6 @@
                         localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
                     }
                 }
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
