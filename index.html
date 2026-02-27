@@ -333,7 +333,7 @@
         let undoTimer = null;
         let currentUndoAction = null;
 
-        // ▼▼▼ Discord通知機能（Embed対応） ▼▼▼
+        // ▼▼▼ Discord通知機能 ▼▼▼
         let notifiedRegistry = JSON.parse(localStorage.getItem('notifiedRegistry')) || {};
         let discordWebhookUrl = localStorage.getItem('discordWebhookUrl') || "";
 
@@ -346,7 +346,6 @@
             }
         }
 
-        // Embedオブジェクトを受け取って送信する関数
         function sendDiscordEmbed(embedData) {
             if (!discordWebhookUrl) return;
 
@@ -406,20 +405,16 @@
 
             if (name && interval) {
                 if (editingIndex !== null) {
-                    // 編集モード
                     habits[editingIndex].name = name;
                     habits[editingIndex].interval = interval;
                     habits[editingIndex].unit = unit;
                 } else {
-                    // 新規追加モード
                     habits.push({ name, interval, unit, lastDone: Date.now() });
                     
-                    // 新規追加のEmbed通知
                     const targetMs = (unit === 'days' ? interval * 24 : interval) * 60 * 60 * 1000;
                     const nextDate = new Date(Date.now() + targetMs);
                     let nextStr = `${nextDate.getMonth() + 1}月${nextDate.getDate()}日`;
                     
-                    // 短期目標の場合は時間も追加
                     if (targetMs <= 48 * 60 * 60 * 1000) {
                         const hh = nextDate.getHours().toString().padStart(2, '0');
                         const mm = nextDate.getMinutes().toString().padStart(2, '0');
@@ -428,23 +423,11 @@
 
                     const embed = {
                         title: "🆕 新しい習慣をはじめました！",
-                        color: 0x3498db, // 水色
+                        color: 0x3498db,
                         fields: [
-                            {
-                                name: "📝 習慣名",
-                                value: name,
-                                inline: false
-                            },
-                            {
-                                name: "🎯 目標ペース",
-                                value: `${interval}${unit === 'days' ? '日' : '時間'}ごと`,
-                                inline: true
-                            },
-                            {
-                                name: "📅 次回予定",
-                                value: nextStr,
-                                inline: true
-                            }
+                            { name: "📝 習慣名", value: name, inline: false },
+                            { name: "🎯 目標ペース", value: `${interval}${unit === 'days' ? '日' : '時間'}ごと`, inline: true },
+                            { name: "📅 次回予定", value: nextStr, inline: true }
                         ],
                         footer: { text: "M2k! 習慣管理 - 継続は力なり" },
                         timestamp: new Date().toISOString()
@@ -501,7 +484,6 @@
                 
                 const isLongTerm = targetMs > (48 * 60 * 60 * 1000);
                 
-                // 短期目標の場合は時間も表示
                 if (!isLongTerm) {
                     const hh = nextDeadline.getHours().toString().padStart(2, '0');
                     const mm = nextDeadline.getMinutes().toString().padStart(2, '0');
@@ -511,7 +493,6 @@
                 let statusClass = 'ok';
                 let isWarning = false;
                 
-                // 色と通知の判定
                 if (elapsedMs >= targetMs) {
                     statusClass = 'danger';
                 } else {
@@ -523,36 +504,43 @@
                     if (isWarning) statusClass = 'warning';
                 }
 
-                // 警告（黄色）通知
+                // ▼▼▼ 警告（黄色）と期限切れ（赤色）の通知処理 ▼▼▼
                 if (statusClass === 'warning') {
                     const uniqueKey = `${habit.name}_${habit.lastDone}_warning`;
                     if (!notifiedRegistry[uniqueKey]) {
-                        
                         const embed = {
                             title: "⚠️ そろそろ期限です",
                             description: `「${habit.name}」の目標時間まであと少しです！`,
                             color: 0xf1c40f, // 黄色
                             fields: [
-                                {
-                                    name: "⏳ 経過時間",
-                                    value: displayTime,
-                                    inline: true
-                                },
-                                {
-                                    name: "📅 期限",
-                                    value: nextScheduleStr,
-                                    inline: true
-                                }
+                                { name: "⏳ 経過時間", value: displayTime, inline: true },
+                                { name: "📅 期限", value: nextScheduleStr, inline: true }
                             ],
                             timestamp: new Date().toISOString()
                         };
-
                         sendDiscordEmbed(embed);
-                        
+                        notifiedRegistry[uniqueKey] = true;
+                        localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
+                    }
+                } else if (statusClass === 'danger') {
+                    const uniqueKey = `${habit.name}_${habit.lastDone}_danger`;
+                    if (!notifiedRegistry[uniqueKey]) {
+                        const embed = {
+                            title: "🚨 期限切れ！",
+                            description: `「${habit.name}」の目標時間を過ぎました😱`,
+                            color: 0xe74c3c, // 赤色
+                            fields: [
+                                { name: "⏳ 経過時間", value: displayTime, inline: true },
+                                { name: "📅 期限", value: nextScheduleStr, inline: true }
+                            ],
+                            timestamp: new Date().toISOString()
+                        };
+                        sendDiscordEmbed(embed);
                         notifiedRegistry[uniqueKey] = true;
                         localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
                     }
                 }
+                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
