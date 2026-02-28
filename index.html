@@ -226,33 +226,6 @@
             font-size: 0.9rem;
             text-decoration: underline;
         }
-
-        /* 設定ボタン */
-        #settings-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
-            background: #fff;
-            border-radius: 50%;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 90;
-            font-size: 1.2rem;
-            opacity: 0.7;
-            border: 1px solid #eee;
-            color: #5865F2;
-        }
-        #settings-btn:hover { opacity: 1; }
-
-        /* ▼▼▼ 埋め込みモード時は設定ボタンを隠す ▼▼▼ */
-        body.embed-mode #settings-btn {
-            display: none !important;
-        }
     </style>
 </head>
 <body>
@@ -260,8 +233,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
-    <div id="settings-btn" onclick="openSettings()">⚙️</div>
 
     <div id="toast">
         <span id="toast-message">完了しました</span>
@@ -333,33 +304,6 @@
         let undoTimer = null;
         let currentUndoAction = null;
 
-        // ▼▼▼ Discord通知機能 ▼▼▼
-        let notifiedRegistry = JSON.parse(localStorage.getItem('notifiedRegistry')) || {};
-        let discordWebhookUrl = localStorage.getItem('discordWebhookUrl') || "";
-
-        function openSettings() {
-            const url = prompt("Discord Webhook URLを入力してください:\n(通知が不要な場合は空欄)", discordWebhookUrl);
-            if (url !== null) {
-                discordWebhookUrl = url.trim();
-                localStorage.setItem('discordWebhookUrl', discordWebhookUrl);
-                alert("設定を保存しました");
-            }
-        }
-
-        function sendDiscordEmbed(embedData) {
-            if (!discordWebhookUrl) return;
-
-            fetch(discordWebhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: "M2k! 習慣管理",
-                    embeds: [embedData]
-                })
-            }).catch(err => console.error("Discord送信エラー:", err));
-        }
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
         db.collection("data").doc(DOC_ID).onSnapshot((doc) => {
             if (doc.exists) {
                 habits = doc.data().list || [];
@@ -410,30 +354,6 @@
                     habits[editingIndex].unit = unit;
                 } else {
                     habits.push({ name, interval, unit, lastDone: Date.now() });
-                    
-                    const targetMs = (unit === 'days' ? interval * 24 : interval) * 60 * 60 * 1000;
-                    const nextDate = new Date(Date.now() + targetMs);
-                    let nextStr = `${nextDate.getMonth() + 1}月${nextDate.getDate()}日`;
-                    
-                    if (targetMs <= 48 * 60 * 60 * 1000) {
-                        const hh = nextDate.getHours().toString().padStart(2, '0');
-                        const mm = nextDate.getMinutes().toString().padStart(2, '0');
-                        nextStr += ` ${hh}:${mm}`;
-                    }
-
-                    const embed = {
-                        title: "🆕 新しい習慣をはじめました！",
-                        color: 0x3498db,
-                        fields: [
-                            { name: "📝 習慣名", value: name, inline: false },
-                            { name: "🎯 目標ペース", value: `${interval}${unit === 'days' ? '日' : '時間'}ごと`, inline: true },
-                            { name: "📅 次回予定", value: nextStr, inline: true }
-                        ],
-                        footer: { text: "M2k! 習慣管理 - 継続は力なり" },
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    sendDiscordEmbed(embed);
                 }
                 saveToCloud();
                 closeAddModal();
@@ -493,6 +413,7 @@
                 let statusClass = 'ok';
                 let isWarning = false;
                 
+                // 色判定（表示用）
                 if (elapsedMs >= targetMs) {
                     statusClass = 'danger';
                 } else {
@@ -503,44 +424,6 @@
                     }
                     if (isWarning) statusClass = 'warning';
                 }
-
-                // ▼▼▼ 警告（黄色）と期限切れ（赤色）の通知処理 ▼▼▼
-                if (statusClass === 'warning') {
-                    const uniqueKey = `${habit.name}_${habit.lastDone}_warning`;
-                    if (!notifiedRegistry[uniqueKey]) {
-                        const embed = {
-                            title: "⚠️ そろそろ期限です",
-                            description: `「${habit.name}」の目標時間まであと少しです！`,
-                            color: 0xf1c40f, // 黄色
-                            fields: [
-                                { name: "⏳ 経過時間", value: displayTime, inline: true },
-                                { name: "📅 期限", value: nextScheduleStr, inline: true }
-                            ],
-                            timestamp: new Date().toISOString()
-                        };
-                        sendDiscordEmbed(embed);
-                        notifiedRegistry[uniqueKey] = true;
-                        localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
-                    }
-                } else if (statusClass === 'danger') {
-                    const uniqueKey = `${habit.name}_${habit.lastDone}_danger`;
-                    if (!notifiedRegistry[uniqueKey]) {
-                        const embed = {
-                            title: "🚨 期限切れ！",
-                            description: `「${habit.name}」の目標時間を過ぎました😱`,
-                            color: 0xe74c3c, // 赤色
-                            fields: [
-                                { name: "⏳ 経過時間", value: displayTime, inline: true },
-                                { name: "📅 期限", value: nextScheduleStr, inline: true }
-                            ],
-                            timestamp: new Date().toISOString()
-                        };
-                        sendDiscordEmbed(embed);
-                        notifiedRegistry[uniqueKey] = true;
-                        localStorage.setItem('notifiedRegistry', JSON.stringify(notifiedRegistry));
-                    }
-                }
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
