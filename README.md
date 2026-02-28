@@ -2,3 +2,6 @@
 作り方なら吐くから、悪用しないで
 
 ※流用の場合は、Firebase設定のキーを自分用に設定してください！
+
+
+https://script.google.com/home
