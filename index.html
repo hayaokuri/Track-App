@@ -158,19 +158,59 @@
         /* -------------------------------------------------- */
         @media (min-width: 800px) {
             body { padding: 20px; max-width: 900px; }
-            body:not(.embed-mode) #habit-list {
+            body:not(.embed-mode):not(.widget-mode) #habit-list {
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
                 gap: 20px;
             }
-            body:not(.embed-mode) .card-base { padding: 10px; border-radius: 20px; }
-            body:not(.embed-mode) .add-card-btn { font-size: 6rem; padding-bottom: 12px; }
-            body:not(.embed-mode) .habit-info h2 { font-size: 1.1rem; margin-bottom: 5px; }
-            body:not(.embed-mode) .elapsed-time { font-size: 2.2rem; margin: 5px 0; }
-            body:not(.embed-mode) .elapsed-label { font-size: 0.85rem; margin-bottom: 4px; }
-            body:not(.embed-mode) .next-schedule { font-size: 0.9rem; padding: 4px 12px; margin: 8px 0; border-radius: 12px; }
-            body:not(.embed-mode) .status { font-size: 0.8rem; margin-top: 4px; }
-            body:not(.embed-mode) .delete-btn { width: 40px; height: 40px; font-size: 1.6rem; top: 10px; right: 10px; }
+            body:not(.embed-mode):not(.widget-mode) .card-base { padding: 10px; border-radius: 20px; }
+            body:not(.embed-mode):not(.widget-mode) .add-card-btn { font-size: 6rem; padding-bottom: 12px; }
+            body:not(.embed-mode):not(.widget-mode) .habit-info h2 { font-size: 1.1rem; margin-bottom: 5px; }
+            body:not(.embed-mode):not(.widget-mode) .elapsed-time { font-size: 2.2rem; margin: 5px 0; }
+            body:not(.embed-mode):not(.widget-mode) .elapsed-label { font-size: 0.85rem; margin-bottom: 4px; }
+            body:not(.embed-mode):not(.widget-mode) .next-schedule { font-size: 0.9rem; padding: 4px 12px; margin: 8px 0; border-radius: 12px; }
+            body:not(.embed-mode):not(.widget-mode) .status { font-size: 0.8rem; margin-top: 4px; }
+            body:not(.embed-mode):not(.widget-mode) .delete-btn { width: 40px; height: 40px; font-size: 1.6rem; top: 10px; right: 10px; }
         }
+
+        /* -------------------------------------------------- */
+        /* ④ ウィジェットモード（?widget=習慣名）：Stream Deck用  */
+        /* -------------------------------------------------- */
+        body.widget-mode {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #111; /* StreamDeckの背景に馴染むように黒系 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+        body.widget-mode #habit-list {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            justify-content: center;
+        }
+        body.widget-mode .card-base {
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            padding: 5px;
+            aspect-ratio: auto; /* 正方形固定を解除 */
+        }
+        body.widget-mode .add-card-btn, body.widget-mode .delete-btn { display: none !important; }
+        
+        /* Stream Deckの画面サイズに合わせた特大表示 */
+        body.widget-mode .habit-info h2 { font-size: 1.8rem; margin-bottom: 2px; }
+        body.widget-mode .elapsed-time { font-size: 2.8rem; margin: 4px 0; letter-spacing: -1px; }
+        body.widget-mode .elapsed-label { font-size: 0.9rem; }
+        body.widget-mode .next-schedule { font-size: 1.1rem; padding: 4px 10px; margin: 4px 0; }
+        body.widget-mode .status { display: none; }
 
 
         /* モーダル */
@@ -299,17 +339,27 @@
         const db = firebase.firestore();
         const DOC_ID = "my_habit_data"; 
 
-        // 埋め込み判定
-        function checkEmbedMode() {
+        // 埋め込み・ウィジェットモードの判定
+        let widgetTarget = null;
+        function checkModes() {
             let isEmbed = false;
             try { if (window.self !== window.top) isEmbed = true; } catch (e) { isEmbed = true; }
             const params = new URLSearchParams(window.location.search);
             if (params.get('embed') === 'true') isEmbed = true;
-            if (isEmbed) document.body.classList.add('embed-mode');
-            else document.body.classList.remove('embed-mode');
+            widgetTarget = params.get('widget');
+
+            if (widgetTarget) {
+                document.body.classList.add('widget-mode');
+                document.body.classList.remove('embed-mode');
+            } else if (isEmbed) {
+                document.body.classList.add('embed-mode');
+                document.body.classList.remove('widget-mode');
+            } else {
+                document.body.classList.remove('embed-mode', 'widget-mode');
+            }
         }
-        checkEmbedMode();
-        window.addEventListener('resize', checkEmbedMode);
+        checkModes();
+        window.addEventListener('resize', checkModes);
 
         let habits = [];
         let editingIndex = null;
@@ -356,23 +406,20 @@
             }
         }
 
-        // タイムゾーンを考慮して datetime-local 用の文字列を生成
         function formatDateTimeLocal(ts) {
             const d = new Date(ts);
             const offset = d.getTimezoneOffset() * 60000;
             return (new Date(d - offset)).toISOString().slice(0, 16);
         }
 
-        // 継続回数の計算
         function calculateStreak(habit) {
             if (!habit.history || habit.history.length === 0) return 0;
             const targetMs = (habit.unit === 'days' ? habit.interval * 24 : habit.interval) * 60 * 60 * 1000;
             let streak = 1;
-            const hist = [...habit.history].sort((a,b) => b - a); // 新しい順
+            const hist = [...habit.history].sort((a,b) => b - a); 
             
             for (let i = 0; i < hist.length - 1; i++) {
                 const gap = hist[i] - hist[i+1];
-                // 目標期間の2倍（1回分のスキップまで許容）以内なら継続とみなす
                 if (gap <= targetMs * 2) {
                     streak++;
                 } else {
@@ -393,14 +440,12 @@
                     habits[editingIndex].interval = interval;
                     habits[editingIndex].unit = unit;
                     
-                    // 手動で時間を修正した場合の処理
                     const manualTimeStr = document.getElementById('habit-last-done-input').value;
                     if (manualTimeStr) {
                         const manualTime = new Date(manualTimeStr).getTime();
                         if (manualTime !== habits[editingIndex].lastDone) {
                             habits[editingIndex].lastDone = manualTime;
                             if (!habits[editingIndex].history) habits[editingIndex].history = [];
-                            // 手動修正も履歴の最後に追加する
                             habits[editingIndex].history.push(manualTime); 
                         }
                     }
@@ -437,15 +482,23 @@
             const now = Date.now();
             
             let displayHabits = habits.map((habit, index) => ({ ...habit, originalIndex: index }));
-            displayHabits.sort((a, b) => {
-                const elapsedA = now - a.lastDone;
-                const targetMsA = (a.unit === 'days' ? a.interval * 24 : a.interval) * 60 * 60 * 1000;
-                const remainingA = targetMsA - elapsedA;
-                const elapsedB = now - b.lastDone;
-                const targetMsB = (b.unit === 'days' ? b.interval * 24 : b.interval) * 60 * 60 * 1000;
-                const remainingB = targetMsB - elapsedB;
-                return remainingA - remainingB;
-            });
+            
+            // ウィジェットモードの場合は指定された習慣だけをフィルタリング
+            if (widgetTarget) {
+                displayHabits = displayHabits.filter(h => h.name === widgetTarget);
+                if (displayHabits.length === 0) {
+                    list.innerHTML = `<div style="color:white; font-size:1.5rem; text-align:center;">「${widgetTarget}」が見つかりません</div>`;
+                    return;
+                }
+            } else {
+                displayHabits.sort((a, b) => {
+                    const targetMsA = (a.unit === 'days' ? a.interval * 24 : a.interval) * 60 * 60 * 1000;
+                    const remainingA = targetMsA - (now - a.lastDone);
+                    const targetMsB = (b.unit === 'days' ? b.interval * 24 : b.interval) * 60 * 60 * 1000;
+                    const remainingB = targetMsB - (now - b.lastDone);
+                    return remainingA - remainingB;
+                });
+            }
 
             displayHabits.forEach((habit) => {
                 const originalIndex = habit.originalIndex;
@@ -498,50 +551,51 @@
                 const div = document.createElement('div');
                 div.className = `card-base habit-card ${statusClass}`;
                 
-                const startPress = () => {
-                    isLongPress = false;
-                    longPressTimer = setTimeout(() => { isLongPress = true; openEditModal(originalIndex); }, 800);
-                };
-                const cancelPress = () => { clearTimeout(longPressTimer); };
-                const endPress = (e) => {
-                    clearTimeout(longPressTimer);
-                    if (isLongPress) { e.preventDefault(); return; }
-                };
+                // ウィジェットモードの時はタップでの編集・完了アクションを無効化（誤操作防止）
+                if (!widgetTarget) {
+                    const startPress = () => {
+                        isLongPress = false;
+                        longPressTimer = setTimeout(() => { isLongPress = true; openEditModal(originalIndex); }, 800);
+                    };
+                    const cancelPress = () => { clearTimeout(longPressTimer); };
+                    const endPress = (e) => {
+                        clearTimeout(longPressTimer);
+                        if (isLongPress) { e.preventDefault(); return; }
+                    };
 
-                div.addEventListener('mousedown', startPress);
-                div.addEventListener('touchstart', startPress, {passive: true});
-                div.addEventListener('mouseup', endPress);
-                div.addEventListener('touchend', endPress);
-                div.addEventListener('mouseleave', cancelPress);
-                div.addEventListener('touchmove', cancelPress);
+                    div.addEventListener('mousedown', startPress);
+                    div.addEventListener('touchstart', startPress, {passive: true});
+                    div.addEventListener('mouseup', endPress);
+                    div.addEventListener('touchend', endPress);
+                    div.addEventListener('mouseleave', cancelPress);
+                    div.addEventListener('touchmove', cancelPress);
 
-                div.onclick = (e) => {
-                    if (isLongPress) { isLongPress = false; return; }
-                    if(!e.target.classList.contains('delete-btn')) {
-                        let buttons = [];
-                        if (statusClass === 'danger') {
-                            // 期限切れの場合、ズレ修正用の「予定時刻で記録」を表示
-                            buttons = [
-                                { text: "予定時刻で記録 (ズレ防止)", class: "btn-success", action: () => completeHabit(originalIndex, expectedDeadline) },
-                                { text: "現在時刻で記録 (今から再開)", class: "btn-primary", action: () => completeHabit(originalIndex, Date.now()) },
-                                { text: "キャンセル", class: "btn-cancel", action: closeConfirmModal }
-                            ];
-                        } else {
-                            // 通常の完了
-                            buttons = [
-                                { text: "完了として記録", class: "btn-primary", action: () => completeHabit(originalIndex, Date.now()) },
-                                { text: "キャンセル", class: "btn-cancel", action: closeConfirmModal }
-                            ];
+                    div.onclick = (e) => {
+                        if (isLongPress) { isLongPress = false; return; }
+                        if(!e.target.classList.contains('delete-btn')) {
+                            let buttons = [];
+                            if (statusClass === 'danger') {
+                                buttons = [
+                                    { text: "予定時刻で記録 (ズレ防止)", class: "btn-success", action: () => completeHabit(originalIndex, expectedDeadline) },
+                                    { text: "現在時刻で記録 (今から再開)", class: "btn-primary", action: () => completeHabit(originalIndex, Date.now()) },
+                                    { text: "キャンセル", class: "btn-cancel", action: closeConfirmModal }
+                                ];
+                            } else {
+                                buttons = [
+                                    { text: "完了として記録", class: "btn-primary", action: () => completeHabit(originalIndex, Date.now()) },
+                                    { text: "キャンセル", class: "btn-cancel", action: closeConfirmModal }
+                                ];
+                            }
+                            showCustomConfirm(`${habit.name}`, '完了として記録しますか？', buttons);
                         }
-                        showCustomConfirm(`${habit.name}`, '完了として記録しますか？', buttons);
-                    }
-                };
+                    };
+                }
                 
                 div.innerHTML = `
                     <div class="habit-info">
                         <h2>${habit.name}</h2>
                         <div class="elapsed-time">
-                            <span class="elapsed-label">完了から</span>
+                            <span class="elapsed-label">完了から</span><br>
                             ${displayTime}
                         </div>
                         <div class="next-schedule">次回: ${nextScheduleStr}</div>
@@ -552,14 +606,17 @@
                 list.appendChild(div);
             });
 
-            const addBtnDiv = document.createElement('div');
-            addBtnDiv.className = 'card-base add-card-btn';
-            addBtnDiv.innerHTML = '+';
-            addBtnDiv.onclick = () => openEditModal(null);
-            list.appendChild(addBtnDiv);
+            if (!widgetTarget) {
+                const addBtnDiv = document.createElement('div');
+                addBtnDiv.className = 'card-base add-card-btn';
+                addBtnDiv.innerHTML = '+';
+                addBtnDiv.onclick = () => openEditModal(null);
+                list.appendChild(addBtnDiv);
+            }
         }
 
         function triggerConfetti() {
+            if (widgetTarget) return; // ウィジェットモードでは紙吹雪を無効化
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         }
 
@@ -573,7 +630,6 @@
             editingIndex = index;
 
             if (index !== null) {
-                // 編集モード
                 editSection.style.display = 'block';
                 const target = habits[index];
                 modalTitle.innerText = "習慣を編集";
@@ -588,7 +644,6 @@
                 const historyList = document.getElementById('history-list');
                 historyList.innerHTML = '';
                 const hist = target.history ? [...target.history].sort((a,b)=>b-a) : [target.lastDone];
-                // 直近10件のみ表示
                 hist.slice(0, 10).forEach(ts => {
                     const d = new Date(ts);
                     const li = document.createElement('li');
@@ -597,7 +652,6 @@
                 });
                 
             } else {
-                // 新規追加モード
                 editSection.style.display = 'none';
                 modalTitle.innerText = "習慣を追加";
                 saveBtn.innerText = "追加";
